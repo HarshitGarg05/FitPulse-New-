@@ -11,6 +11,8 @@ import com.example.data.local.UserProfileEntity
 import com.example.data.local.WorkoutSessionEntity
 import com.example.data.local.WorkoutSetEntity
 import com.example.data.local.WorkoutTemplateEntity
+import com.example.data.repository.ActivityGoalMode
+import com.example.data.repository.ActivityRingGoalPrefs
 import com.example.data.repository.AnalyticsAndInsightsEngine
 import com.example.data.repository.AnalyticsDateRange
 import com.example.data.repository.AttendanceCheckInResult
@@ -22,9 +24,11 @@ import com.example.data.repository.FitnessRepository
 import com.example.data.repository.GeneratedPdfReport
 import com.example.data.repository.LocalBackupSnapshotInfo
 import com.example.data.repository.PdfReportGenerator
+import com.example.data.repository.WeeklyActivityRingMetrics
 import com.example.ui.theme.ThemeMode
 import com.example.util.OriginIslandLiveManager
 import java.io.File
+import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,6 +51,18 @@ enum class AppDestination(val title: String) {
     EXERCISES("Exercises"),
     SETTINGS("Settings")
 }
+
+data class WorkoutCompletionSummary(
+    val sessionId: Long,
+    val title: String,
+    val category: String,
+    val durationMinutes: Int,
+    val exercisesCompleted: Int,
+    val totalSetsCompleted: Int,
+    val totalRepsCompleted: Int,
+    val totalVolumeKg: Float,
+    val personalRecordsCount: Int
+)
 
 /**
  * Two-Stage Workout Plan & Live Logger State:
@@ -108,6 +124,17 @@ private data class DashboardAnalyticsCacheKey(
     val todayKey: String
 )
 
+private data class WeeklyRingsCacheKey(
+    val completedSessions: List<WorkoutSessionEntity>,
+    val allSets: List<WorkoutSetEntity>,
+    val profile: UserProfileEntity,
+    val goalPrefs: ActivityRingGoalPrefs,
+    val activeWorkoutSets: List<DraftSetEntry>,
+    val editingCompletedSessionId: Long?,
+    val todayKey: String,
+    val zoneIdName: String
+)
+
 private data class UiControlState(
     val currentTab: AppDestination = AppDestination.SUMMARY,
     val analyticsDateRange: AnalyticsDateRange = AnalyticsDateRange.DAYS_30,
@@ -121,10 +148,13 @@ private data class UiControlState(
     val selectedExerciseForDetail: String? = null,
     val selectedHistoricalSessionId: Long? = null,
     val activeWorkout: ActiveWorkoutEditorState = ActiveWorkoutEditorState(),
+    val completedWorkoutSummary: WorkoutCompletionSummary? = null,
     val generatedPdfReport: GeneratedPdfReport? = null,
     val isGeneratingPdf: Boolean = false,
     val localBackupSnapshots: List<LocalBackupSnapshotInfo> = emptyList(),
-    val statusMessage: String? = null
+    val statusMessage: String? = null,
+    val timeRefreshNonce: Long = System.currentTimeMillis(),
+    val activeZoneIdName: String = ZoneId.systemDefault().id
 )
 
 data class FitPulseUiState(
@@ -149,6 +179,8 @@ data class FitPulseUiState(
         emptyList(),
         UserProfileEntity()
     ),
+    val weeklyActivityRings: WeeklyActivityRingMetrics = WeeklyActivityRingMetrics(),
+    val activityRingGoalPrefs: ActivityRingGoalPrefs = ActivityRingGoalPrefs(),
     val analyticsDateRange: AnalyticsDateRange = AnalyticsDateRange.DAYS_30,
     val allExercises: List<ExerciseEntity> = emptyList(),
     val filteredExercises: List<ExerciseEntity> = emptyList(),
@@ -164,6 +196,7 @@ data class FitPulseUiState(
     val selectedHistoricalSession: WorkoutSessionEntity? = null,
     val selectedHistoricalSessionSets: List<WorkoutSetEntity> = emptyList(),
     val activeWorkout: ActiveWorkoutEditorState = ActiveWorkoutEditorState(),
+    val completedWorkoutSummary: WorkoutCompletionSummary? = null,
     val generatedPdfReport: GeneratedPdfReport? = null,
     val isGeneratingPdf: Boolean = false,
     val localBackupSnapshots: List<LocalBackupSnapshotInfo> = emptyList(),
@@ -185,6 +218,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     @Volatile
     private var lastAnalyticsCache: Pair<DashboardAnalyticsCacheKey, DashboardAnalyticsSummary>? = null
+
+    @Volatile
+    private var lastWeeklyRingsCache: Pair<WeeklyRingsCacheKey, WeeklyActivityRingMetrics>? = null
 
     val themeModeFlow: StateFlow<ThemeMode> = repository.themeModeFlow.stateIn(
         scope = viewModelScope,
@@ -224,12 +260,15 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<FitPulseUiState> = combine(
         coreDataFlow,
         repository.themeModeFlow,
+        repository.activityRingGoalPrefsFlow,
         controlState
-    ) { core, themeMode, ctrl ->
+    ) { core, themeMode, ringGoalPrefs, ctrl ->
         val profile = core.profile
         val useLbs = profile.preferredWeightUnit.equals("lbs", ignoreCase = true)
         val unitLabel = if (useLbs) "lbs" else "kg"
-        val todayKey = AnalyticsAndInsightsEngine.todayDateKey()
+        val nowMillis = System.currentTimeMillis()
+        val zoneId = ZoneId.systemDefault()
+        val todayKey = AnalyticsAndInsightsEngine.todayDateKey(nowMillis)
 
         val attendanceKey = AttendanceCacheKey(
             records = core.attendance,
@@ -246,12 +285,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 records = core.attendance,
                 profile = profile,
                 selectedCalendarYear = ctrl.selectedCalendarYear,
-                selectedCalendarMonthZeroBased = ctrl.selectedCalendarMonthZeroBased
+                selectedCalendarMonthZeroBased = ctrl.selectedCalendarMonthZeroBased,
+                nowMillis = nowMillis
             ).also { lastAttendanceCache = attendanceKey to it }
         }
 
         val attendanceCutoff = ctrl.attendanceFilterRange.days?.let { days ->
-            AnalyticsAndInsightsEngine.dateKeyForDaysAgo(days - 1)
+            AnalyticsAndInsightsEngine.dateKeyForDaysAgo(days - 1, nowMillis)
         }
         val filteredAttendance = if (attendanceCutoff != null) {
             core.attendance.filter { it.dateKey >= attendanceCutoff && it.dateKey <= todayKey }
@@ -266,7 +306,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             emptyList()
         }
 
-        val activeWorkoutTitle = ctrl.activeWorkout.title.ifBlank { "Live Workout" }
+        val activeWorkoutTitle = if (liveCompletedSets.isNotEmpty()) {
+            ctrl.activeWorkout.title.ifBlank { "Live Workout" }
+        } else {
+            ""
+        }
         val analyticsKey = DashboardAnalyticsCacheKey(
             dateRange = ctrl.analyticsDateRange,
             attendanceRecords = core.attendance,
@@ -275,7 +319,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             allSets = core.allSets,
             profile = profile,
             activeWorkoutTitle = activeWorkoutTitle,
-            activeWorkoutDateKey = ctrl.activeWorkout.dateKey,
+            activeWorkoutDateKey = if (liveCompletedSets.isNotEmpty()) ctrl.activeWorkout.dateKey else "",
             activeDraftSets = liveCompletedSets,
             todayKey = todayKey
         )
@@ -292,8 +336,35 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 profile = profile,
                 activeWorkoutTitle = activeWorkoutTitle,
                 activeWorkoutDateKey = ctrl.activeWorkout.dateKey,
-                activeDraftSets = liveCompletedSets
+                activeDraftSets = liveCompletedSets,
+                nowMillis = nowMillis
             ).also { lastAnalyticsCache = analyticsKey to it }
+        }
+
+        val ringsKey = WeeklyRingsCacheKey(
+            completedSessions = core.completedSessions,
+            allSets = core.allSets,
+            profile = profile,
+            goalPrefs = ringGoalPrefs,
+            activeWorkoutSets = liveCompletedSets,
+            editingCompletedSessionId = ctrl.activeWorkout.editingSessionId,
+            todayKey = todayKey,
+            zoneIdName = zoneId.id
+        )
+        val cachedRings = lastWeeklyRingsCache
+        val weeklyActivityRings = if (cachedRings != null && cachedRings.first == ringsKey) {
+            cachedRings.second
+        } else {
+            AnalyticsAndInsightsEngine.buildWeeklyActivityRingMetrics(
+                completedSessions = core.completedSessions,
+                allSets = core.allSets,
+                profile = profile,
+                goalPrefs = ringGoalPrefs,
+                activeWorkoutSets = liveCompletedSets,
+                editingCompletedSessionId = ctrl.activeWorkout.editingSessionId,
+                nowMillis = nowMillis,
+                zoneId = zoneId
+            ).also { lastWeeklyRingsCache = ringsKey to it }
         }
 
         val filteredExercises = core.exercises.filter { ex ->
@@ -340,6 +411,8 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             filteredAttendanceRecords = filteredAttendance,
             attendanceFilterRange = ctrl.attendanceFilterRange,
             dashboardAnalytics = dashboardAnalytics,
+            weeklyActivityRings = weeklyActivityRings,
+            activityRingGoalPrefs = ringGoalPrefs,
             analyticsDateRange = ctrl.analyticsDateRange,
             allExercises = core.exercises,
             filteredExercises = filteredExercises,
@@ -355,6 +428,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             selectedHistoricalSession = selectedSession,
             selectedHistoricalSessionSets = selectedSessionSets,
             activeWorkout = ctrl.activeWorkout,
+            completedWorkoutSummary = ctrl.completedWorkoutSummary,
             generatedPdfReport = ctrl.generatedPdfReport,
             isGeneratingPdf = ctrl.isGeneratingPdf,
             localBackupSnapshots = ctrl.localBackupSnapshots,
@@ -370,6 +444,57 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun selectTab(tab: AppDestination) {
         controlState.update { it.copy(currentTab = tab) }
+    }
+
+    fun refreshTimeAndZone() {
+        val now = System.currentTimeMillis()
+        val zoneId = ZoneId.systemDefault().id
+        controlState.update { state ->
+            state.copy(
+                timeRefreshNonce = now,
+                activeZoneIdName = zoneId
+            )
+        }
+    }
+
+    fun dismissCompletedWorkoutSummary() {
+        controlState.update { it.copy(completedWorkoutSummary = null) }
+    }
+
+    fun setActivityGoalMode(mode: ActivityGoalMode) {
+        viewModelScope.launch {
+            repository.setActivityGoalMode(mode)
+            postMessage(
+                if (mode == ActivityGoalMode.AUTOMATIC) {
+                    "Switched to Automatic Adaptive Weekly Goals."
+                } else {
+                    "Switched to Custom Weekly Goals."
+                }
+            )
+        }
+    }
+
+    fun saveCustomActivityRingGoals(
+        weeklyReps: Int,
+        weeklyExercises: Int,
+        weeklyVolumeDisplay: Float,
+        switchToCustomMode: Boolean = true
+    ) {
+        val useLbs = uiState.value.useLbs
+        val volumeKg = if (useLbs) {
+            FitnessDatabase.lbsToKg(weeklyVolumeDisplay)
+        } else {
+            weeklyVolumeDisplay
+        }
+        viewModelScope.launch {
+            repository.updateCustomActivityRingGoals(
+                weeklyReps = weeklyReps,
+                weeklyExercises = weeklyExercises,
+                weeklyVolumeKg = volumeKg,
+                switchToCustomMode = switchToCustomMode
+            )
+            postMessage("Weekly Activity Ring goals updated.")
+        }
     }
 
     fun clearStatusMessage() {
@@ -1154,9 +1279,19 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             postMessage("Workout date must be in YYYY-MM-DD format.")
             return
         }
-        if (!asDraft && cleanDate > AnalyticsAndInsightsEngine.todayDateKey()) {
+        val todayKey = AnalyticsAndInsightsEngine.todayDateKey()
+        if (!asDraft && cleanDate > todayKey) {
             postMessage("Cannot complete a workout for a future date ($cleanDate). Save as Draft or choose today's date.")
             return
+        }
+
+        // If a live workout was started before midnight (yesterday) and finished after midnight (today),
+        // attribute the newly completed session to today's completion date.
+        val yesterdayKey = AnalyticsAndInsightsEngine.dateKeyForDaysAgo(1)
+        val effectiveDateKey = if (!asDraft && current.editingSessionId == null && current.isWorkoutActive && cleanDate == yesterdayKey) {
+            todayKey
+        } else {
+            cleanDate
         }
 
         // If completing workout and user hasn't toggled individual sets to COMPLETED yet, mark planned sets as COMPLETED
@@ -1177,7 +1312,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 existingSessionId = current.editingSessionId,
                 title = cleanTitle,
                 category = current.category,
-                dateKey = cleanDate,
+                dateKey = effectiveDateKey,
                 durationMinutes = durationMinutes,
                 notes = current.notes,
                 isDraft = asDraft,
@@ -1185,16 +1320,51 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
                 userBodyweightKg = profile.weightKg,
                 autoRecordAttendanceOnComplete = profile.autoCheckInOnWorkoutComplete
             )
+
+            val completionSummary = if (!asDraft) {
+                val completedValidSets = setsToPersist.filter { it.status == "COMPLETED" && it.reps > 0 }
+                val exercisesDone = completedValidSets.map { it.exerciseName.trim().lowercase() }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .size
+                val totalRepsDone = completedValidSets.sumOf { it.reps.coerceAtLeast(0) }
+                val weightedVolumeDoneKg = completedValidSets.fold(0f) { acc, s ->
+                    val vol = if (!s.isBodyweight && s.weightKg > 0f && s.reps > 0) {
+                        s.weightKg * s.reps
+                    } else if (s.isBodyweight && !s.isAssisted && s.weightKg > 0f && s.reps > 0) {
+                        s.weightKg * s.reps
+                    } else {
+                        0f
+                    }
+                    acc + vol
+                }
+                val savedSession = repository.getSessionById(savedId)
+                WorkoutCompletionSummary(
+                    sessionId = savedId,
+                    title = cleanTitle,
+                    category = current.category.ifBlank { "Strength" },
+                    durationMinutes = durationMinutes,
+                    exercisesCompleted = exercisesDone,
+                    totalSetsCompleted = completedValidSets.size,
+                    totalRepsCompleted = totalRepsDone,
+                    totalVolumeKg = weightedVolumeDoneKg,
+                    personalRecordsCount = savedSession?.prCount ?: 0
+                )
+            } else {
+                null
+            }
+
             controlState.update { state ->
                 state.copy(
                     selectedHistoricalSessionId = savedId,
-                    activeWorkout = ActiveWorkoutEditorState()
+                    activeWorkout = ActiveWorkoutEditorState(),
+                    completedWorkoutSummary = completionSummary,
+                    timeRefreshNonce = System.currentTimeMillis()
                 )
             }
-            postMessage(
-                if (asDraft) "Workout plan saved as draft."
-                else "Workout '$cleanTitle' completed and saved!"
-            )
+            if (asDraft) {
+                postMessage("Workout plan saved as draft.")
+            }
         }
     }
 

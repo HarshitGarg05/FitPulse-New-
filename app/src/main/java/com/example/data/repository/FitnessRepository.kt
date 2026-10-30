@@ -3,6 +3,8 @@ package com.example.data.repository
 import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.data.local.ExerciseEntity
@@ -19,6 +21,18 @@ import kotlinx.coroutines.flow.map
 import kotlin.math.roundToInt
 
 private val Context.appDataStore by preferencesDataStore(name = "fitpulse_apple_health_prefs")
+
+enum class ActivityGoalMode(val label: String) {
+    AUTOMATIC("Automatic Goals"),
+    CUSTOM("Custom Goals")
+}
+
+data class ActivityRingGoalPrefs(
+    val mode: ActivityGoalMode = ActivityGoalMode.AUTOMATIC,
+    val customWeeklyReps: Int = 600,
+    val customWeeklyExercises: Int = 16,
+    val customWeeklyVolumeKg: Float = 10000f
+)
 
 data class DraftSetEntry(
     val localId: Long = 0L,
@@ -51,11 +65,29 @@ class FitnessRepository(
 ) {
     companion object {
         private val KEY_THEME_MODE = stringPreferencesKey("apple_fitness_light_card_theme_mode")
+        private val KEY_ACTIVITY_GOAL_MODE = stringPreferencesKey("activity_ring_goal_mode")
+        private val KEY_CUSTOM_WEEKLY_REPS = intPreferencesKey("custom_weekly_reps_goal")
+        private val KEY_CUSTOM_WEEKLY_EXERCISES = intPreferencesKey("custom_weekly_exercises_goal")
+        private val KEY_CUSTOM_WEEKLY_VOLUME_KG = floatPreferencesKey("custom_weekly_volume_kg_goal")
     }
 
     val themeModeFlow: Flow<ThemeMode> = context.appDataStore.data.map { prefs ->
         val raw = prefs[KEY_THEME_MODE] ?: ThemeMode.LIGHT.name
         runCatching { ThemeMode.valueOf(raw) }.getOrDefault(ThemeMode.LIGHT)
+    }
+
+    val activityRingGoalPrefsFlow: Flow<ActivityRingGoalPrefs> = context.appDataStore.data.map { prefs ->
+        val modeRaw = prefs[KEY_ACTIVITY_GOAL_MODE] ?: ActivityGoalMode.AUTOMATIC.name
+        val mode = runCatching { ActivityGoalMode.valueOf(modeRaw) }.getOrDefault(ActivityGoalMode.AUTOMATIC)
+        val customReps = (prefs[KEY_CUSTOM_WEEKLY_REPS] ?: 600).coerceIn(50, 25000)
+        val customExercises = (prefs[KEY_CUSTOM_WEEKLY_EXERCISES] ?: 16).coerceIn(1, 300)
+        val customVolumeKg = (prefs[KEY_CUSTOM_WEEKLY_VOLUME_KG] ?: 10000f).coerceIn(250f, 500000f)
+        ActivityRingGoalPrefs(
+            mode = mode,
+            customWeeklyReps = customReps,
+            customWeeklyExercises = customExercises,
+            customWeeklyVolumeKg = customVolumeKg
+        )
     }
 
     val userProfileFlow: Flow<UserProfileEntity?> = dao.observeUserProfile()
@@ -83,6 +115,28 @@ class FitnessRepository(
                 lastUpdatedMillis = System.currentTimeMillis()
             )
         )
+    }
+
+    suspend fun setActivityGoalMode(mode: ActivityGoalMode) {
+        context.appDataStore.edit { prefs ->
+            prefs[KEY_ACTIVITY_GOAL_MODE] = mode.name
+        }
+    }
+
+    suspend fun updateCustomActivityRingGoals(
+        weeklyReps: Int,
+        weeklyExercises: Int,
+        weeklyVolumeKg: Float,
+        switchToCustomMode: Boolean = true
+    ) {
+        context.appDataStore.edit { prefs ->
+            if (switchToCustomMode) {
+                prefs[KEY_ACTIVITY_GOAL_MODE] = ActivityGoalMode.CUSTOM.name
+            }
+            prefs[KEY_CUSTOM_WEEKLY_REPS] = weeklyReps.coerceIn(50, 25000)
+            prefs[KEY_CUSTOM_WEEKLY_EXERCISES] = weeklyExercises.coerceIn(1, 300)
+            prefs[KEY_CUSTOM_WEEKLY_VOLUME_KG] = weeklyVolumeKg.coerceIn(250f, 500000f)
+        }
     }
 
     suspend fun updateProfile(profile: UserProfileEntity) {

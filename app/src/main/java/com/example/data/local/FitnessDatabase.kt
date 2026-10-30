@@ -25,6 +25,9 @@ abstract class FitnessDatabase : RoomDatabase() {
     companion object {
         const val CURRENT_SCHEMA_VERSION = 7
 
+        fun kgToLbs(kg: Float): Float = kg * 2.20462f
+        fun lbsToKg(lbs: Float): Float = lbs / 2.20462f
+
         @Volatile
         private var INSTANCE: FitnessDatabase? = null
 

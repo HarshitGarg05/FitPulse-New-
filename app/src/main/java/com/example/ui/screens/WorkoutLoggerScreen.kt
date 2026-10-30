@@ -1,9 +1,15 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -87,6 +93,7 @@ import com.example.data.local.WorkoutSetEntity
 import com.example.data.local.WorkoutTemplateEntity
 import com.example.data.repository.AnalyticsAndInsightsEngine
 import com.example.data.repository.DraftSetEntry
+import com.example.ui.components.AppleDatePickerField
 import com.example.ui.components.AppleDropdownField
 import com.example.ui.components.AppleLargePageHeader
 import com.example.ui.components.AppleLiquidGlassTextField
@@ -118,9 +125,17 @@ import com.example.ui.theme.AppleSurfaceSecondaryLight
 import com.example.ui.theme.AppleSurfaceTertiaryDark
 import com.example.ui.theme.AppleSurfaceTertiaryLight
 import com.example.ui.theme.AppleSystemBlue
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.scale
+import com.example.data.local.FitnessDatabase
 import com.example.ui.viewmodel.ActiveWorkoutEditorState
+import com.example.ui.viewmodel.AppDestination
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
+import com.example.ui.viewmodel.WorkoutCompletionSummary
+import com.example.util.rememberReducedMotionEnabled
+import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -142,6 +157,7 @@ fun WorkoutLoggerScreen(
     var isCreatingNewRoutine by remember { mutableStateOf(false) }
     var collapsedPlannedExercises by rememberSaveable { mutableStateOf(listOf<String>()) }
     var collapsedLiveExercises by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     val context = LocalContext.current
 
     val activeWorkout = state.activeWorkout
@@ -168,6 +184,7 @@ fun WorkoutLoggerScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 720.dp)
@@ -632,12 +649,26 @@ fun WorkoutLoggerScreen(
         )
     }
 
+    if (state.completedWorkoutSummary != null) {
+        WorkoutCompletionSummaryModal(
+            summary = state.completedWorkoutSummary,
+            useLbs = state.useLbs,
+            unitLabel = state.unitLabel,
+            onDismiss = { viewModel.dismissCompletedWorkoutSummary() },
+            onViewDashboardRings = {
+                viewModel.dismissCompletedWorkoutSummary()
+                viewModel.selectTab(AppDestination.SUMMARY)
+            }
+        )
+    }
+
     if (showAddExerciseModal) {
         AddExerciseToWorkoutDialog(
             exercises = state.allExercises.filter { !it.isArchived },
             unitLabel = state.unitLabel,
             onDismiss = { showAddExerciseModal = false },
             onSelectExercise = { name, muscle, targetWeight, targetReps, targetSets ->
+                VivoHapticFeedback.performMedium(context)
                 viewModel.addExerciseToActiveWorkout(
                     exerciseName = name,
                     muscleGroup = muscle,
@@ -687,16 +718,6 @@ private fun BlankWorkoutPlanBuilderCard(
     onClearPlan: () -> Unit,
     onAddExerciseClick: () -> Unit
 ) {
-    val dateOptions = remember {
-        (0..7).map { daysAgo ->
-            val key = AnalyticsAndInsightsEngine.dateKeyForDaysAgo(daysAgo)
-            val readable = AnalyticsAndInsightsEngine.formatDateKeyReadable(key)
-            key to "$readable ($key)"
-        }
-    }
-    val currentSelectedDateLabel = dateOptions.firstOrNull { it.first == editor.dateKey }?.second
-        ?: "${AnalyticsAndInsightsEngine.formatDateKeyReadable(editor.dateKey)} (${editor.dateKey})"
-
     LiquidGlassCard(accentTint = AppleStandBlue) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
@@ -774,15 +795,13 @@ private fun BlankWorkoutPlanBuilderCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                AppleDropdownField(
+                AppleDatePickerField(
                     label = "Workout Date",
-                    selectedValue = currentSelectedDateLabel,
-                    options = dateOptions.map { it.second },
-                    onOptionSelected = { label ->
-                        val key = dateOptions.firstOrNull { it.second == label }?.first
-                        if (key != null) onUpdateDate(key)
-                    },
-                    modifier = Modifier.weight(1f)
+                    selectedDateKey = editor.dateKey,
+                    onDateKeySelected = onUpdateDate,
+                    accentColor = AppleStandBlue,
+                    modifier = Modifier.weight(1f),
+                    testTag = "workout_date_picker_field"
                 )
             }
 
@@ -917,10 +936,10 @@ private fun PlannedExerciseBuilderCard(
 
                     sets.forEach { setEntry ->
                         val displayW = ((setEntry.weightKg * factor * 10f).roundToInt() / 10f)
-                        var weightText by remember(setEntry.localId, displayW) {
+                        var weightText by remember(setEntry.localId, useLbs) {
                             mutableStateOf(if (displayW % 1f == 0f) displayW.toInt().toString() else displayW.toString())
                         }
-                        var repsText by remember(setEntry.localId, setEntry.reps) {
+                        var repsText by remember(setEntry.localId) {
                             mutableStateOf(setEntry.reps.toString())
                         }
 
@@ -1100,7 +1119,7 @@ private fun LiveWorkoutTelemetryHeaderCard(
             Surface(
                 shape = RoundedCornerShape(AppleRadius.nestedCard),
                 color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                shadowElevation = if (isDark) 0.dp else 1.dp,
+                shadowElevation = 0.dp,
                 border = BorderStroke(
                     width = if (isDark) 0.5.dp else 1.dp,
                     color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
@@ -1348,33 +1367,49 @@ private fun LiveInteractiveExerciseCard(
             sets.forEach { setEntry ->
                 val isCompleted = setEntry.status == "COMPLETED"
                 val displayW = ((setEntry.weightKg * factor * 10f).roundToInt() / 10f)
-                var weightText by remember(setEntry.localId, displayW) {
+                var weightText by remember(setEntry.localId, useLbs) {
                     mutableStateOf(if (displayW % 1f == 0f) displayW.toInt().toString() else displayW.toString())
                 }
-                var repsText by remember(setEntry.localId, setEntry.reps) {
+                var repsText by remember(setEntry.localId) {
                     mutableStateOf(setEntry.reps.toString())
                 }
 
                 val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-                Surface(
-                    shape = RoundedCornerShape(AppleRadius.nestedCard),
-                    color = if (isCompleted) {
+                val context = LocalContext.current
+                val setRowBg by animateColorAsState(
+                    targetValue = if (isCompleted) {
                         AppleStateSuccess.copy(alpha = 0.12f)
                     } else if (isDark) {
                         AppleSurfaceSecondaryDark
                     } else {
                         AppleSurfaceSecondaryLight
                     },
-                    shadowElevation = if (isDark || isCompleted) 0.dp else 1.dp,
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    label = "setRowBg"
+                )
+                val setRowBorder by animateColorAsState(
+                    targetValue = if (isCompleted) {
+                        AppleStateSuccess.copy(alpha = 0.35f)
+                    } else if (isDark) {
+                        AppleNestedCardBorderDark
+                    } else {
+                        AppleNestedCardBorderLight
+                    },
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    label = "setRowBorder"
+                )
+                val badgeScale by animateFloatAsState(
+                    targetValue = if (isCompleted) 1.08f else 1.0f,
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                    label = "setBadgeScale"
+                )
+                Surface(
+                    shape = RoundedCornerShape(AppleRadius.nestedCard),
+                    color = setRowBg,
+                    shadowElevation = 0.dp,
                     border = BorderStroke(
                         width = if (isDark) 0.5.dp else 1.dp,
-                        color = if (isCompleted) {
-                            AppleStateSuccess.copy(alpha = 0.35f)
-                        } else if (isDark) {
-                            AppleNestedCardBorderDark
-                        } else {
-                            AppleNestedCardBorderLight
-                        }
+                        color = setRowBorder
                     )
                 ) {
                     Column(
@@ -1391,6 +1426,7 @@ private fun LiveInteractiveExerciseCard(
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
+                                    .scale(badgeScale)
                                     .clip(CircleShape)
                                     .background(if (isCompleted) AppleExerciseGreen else AppleStandBlue),
                                 contentAlignment = Alignment.Center
@@ -1429,7 +1465,10 @@ private fun LiveInteractiveExerciseCard(
 
                             LiquidGlassPrimaryButton(
                                 text = if (isCompleted) "Done" else "Register",
-                                onClick = { onRegisterSet(setEntry.localId) },
+                                onClick = {
+                                    VivoHapticFeedback.performMedium(context)
+                                    onRegisterSet(setEntry.localId)
+                                },
                                 icon = if (isCompleted) Icons.Default.Check else null,
                                 accentColor = if (isCompleted) AppleExerciseGreen else AppleStandBlue,
                                 modifier = Modifier.weight(1.1f)
@@ -1588,15 +1627,23 @@ private fun RestTimerBanner(
                 }
             }
 
-            LinearProgressIndicator(
-                progress = { progress },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
-                    .clip(RoundedCornerShape(999.dp)),
-                color = AppleOverloadOrange,
-                trackColor = AppleOverloadOrange.copy(alpha = 0.16f)
-            )
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(AppleOverloadOrange.copy(alpha = 0.16f))
+            ) {
+                if (progress > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress.coerceIn(0f, 1f))
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(AppleOverloadOrange)
+                    )
+                }
+            }
 
             // Preset Rest Duration Selector row
             Row(
@@ -1883,6 +1930,7 @@ private fun HistoricalWorkoutDetailDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(AppleRadius.bottomSheet),
         containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
@@ -1948,7 +1996,7 @@ private fun HistoricalWorkoutDetailDialog(
                         Surface(
                             shape = RoundedCornerShape(AppleRadius.nestedCard),
                             color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                            shadowElevation = if (isDark) 0.dp else 1.dp,
+                            shadowElevation = 0.dp,
                             border = BorderStroke(
                                 width = if (isDark) 0.5.dp else 1.dp,
                                 color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
@@ -1982,7 +2030,7 @@ private fun HistoricalWorkoutDetailDialog(
                     Surface(
                         shape = RoundedCornerShape(AppleRadius.nestedCard),
                         color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         border = BorderStroke(
                             width = if (isDark) 0.5.dp else 1.dp,
                             color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
@@ -2112,6 +2160,7 @@ private fun AddExerciseToWorkoutDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(AppleRadius.bottomSheet),
         containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = {
             Text(
                 text = "Add Exercise to Workout Plan",
@@ -2256,6 +2305,7 @@ private fun RoutineEditorDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(AppleRadius.bottomSheet),
         containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = {
             Text(
                 text = if (existingRoutine != null) "Edit Workout Plan" else "Create Saved Workout Plan",
@@ -2332,3 +2382,191 @@ private fun RoutineEditorDialog(
         }
     )
 }
+
+@Composable
+private fun WorkoutCompletionSummaryModal(
+    summary: WorkoutCompletionSummary,
+    useLbs: Boolean,
+    unitLabel: String,
+    onDismiss: () -> Unit,
+    onViewDashboardRings: () -> Unit
+) {
+    val context = LocalContext.current
+    val reducedMotion = rememberReducedMotionEnabled()
+    val intFormatter = remember { NumberFormat.getIntegerInstance(Locale.US) }
+
+    val badgeScale = remember { Animatable(if (reducedMotion) 1f else 0.72f) }
+    var animateCounters by remember { mutableStateOf(reducedMotion) }
+
+    LaunchedEffect(summary.sessionId) {
+        VivoHapticFeedback.performSuccess(context)
+        animateCounters = true
+        if (!reducedMotion) {
+            badgeScale.animateTo(
+                targetValue = 1.06f,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+            )
+            badgeScale.animateTo(
+                targetValue = 1.0f,
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    val animatedExercises by animateIntAsState(
+        targetValue = if (animateCounters) summary.exercisesCompleted else 0,
+        animationSpec = tween(durationMillis = if (reducedMotion) 0 else 520, easing = FastOutSlowInEasing),
+        label = "summaryExercises"
+    )
+    val animatedReps by animateIntAsState(
+        targetValue = if (animateCounters) summary.totalRepsCompleted else 0,
+        animationSpec = tween(durationMillis = if (reducedMotion) 0 else 600, easing = FastOutSlowInEasing),
+        label = "summaryReps"
+    )
+    val targetDisplayVolume = remember(summary.totalVolumeKg, useLbs) {
+        val raw = if (useLbs) FitnessDatabase.kgToLbs(summary.totalVolumeKg) else summary.totalVolumeKg
+        raw.roundToInt()
+    }
+    val animatedVolume by animateIntAsState(
+        targetValue = if (animateCounters) targetDisplayVolume else 0,
+        animationSpec = tween(durationMillis = if (reducedMotion) 0 else 680, easing = FastOutSlowInEasing),
+        label = "summaryVolume"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(AppleRadius.bottomSheet),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        title = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .scale(badgeScale.value)
+                        .clip(CircleShape)
+                        .background(AppleStateSuccess.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Workout Completed",
+                        tint = AppleStateSuccess,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+                Text(
+                    text = "Workout Complete",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "${summary.title} • ${summary.durationMinutes} min",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Total Reps (Outer Ring)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${intFormatter.format(animatedReps)} reps",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleMoveRed
+                            )
+                        }
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Exercises Completed (Middle Ring)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$animatedExercises exercises",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleExerciseGreen
+                            )
+                        }
+                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Total Volume (Inner Ring)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${intFormatter.format(animatedVolume)} $unitLabel",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleStandBlue
+                            )
+                        }
+                    }
+                }
+                if (summary.personalRecordsCount > 0) {
+                    Text(
+                        text = "New Personal Records achieved: ${summary.personalRecordsCount}",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = AppleOverloadOrange,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            LiquidGlassPrimaryButton(
+                text = "View Activity Rings",
+                onClick = onViewDashboardRings,
+                accentColor = AppleMoveRed,
+                testTag = "completion_summary_view_rings_button"
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
+}
+

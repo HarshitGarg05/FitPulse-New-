@@ -2,19 +2,35 @@ package com.example.util
 
 import android.content.Context
 import android.os.Build
-import android.os.CombinedVibration
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.view.HapticFeedbackConstants
-import android.view.View
+import android.provider.Settings
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 
 /**
- * Advanced Tactile Haptics Engine optimized for Vivo & iQOO X-Axis Linear Actuators (OriginOS & Funtouch OS).
- * Uses hardware-accelerated vibration compositions when available, falling back gracefully to predefined
- * effects or micro-waveform pulses.
+ * Native Android Tactile Haptics & Motion Accessibility Engine for FitPulse.
+ *
+ * Provides calibrated haptic feedback tiers matching Apple's Taptic Engine philosophy:
+ * - Light: Button taps, navigation selection, and minor interactions.
+ * - Medium: Completing a set, adding an exercise, or changing important selections.
+ * - Success: Completing a workout or reaching a weekly activity target.
+ * - Warning: Invalid actions, destructive operations, or validation errors.
+ *
+ * Respects device system haptic settings, checks hardware capability, and debounces rapid calls
+ * so haptics never trigger repeatedly during animations or continuous interactions.
  */
 object VivoHapticFeedback {
+
+    @Volatile
+    private var lastHapticElapsedMillis: Long = 0L
+
+    private const val MIN_LIGHT_INTERVAL_MS = 35L
+    private const val MIN_MEDIUM_INTERVAL_MS = 55L
+    private const val MIN_STATUS_INTERVAL_MS = 120L
 
     private fun getVibrator(context: Context): Vibrator? {
         return try {
@@ -31,19 +47,87 @@ object VivoHapticFeedback {
     }
 
     /**
-     * Crisp mechanical switch click (ideal for Vivo mechanical keyboard feel on standard buttons)
+     * Checks whether system haptic feedback is enabled and the hardware vibrator is supported.
      */
-    fun performClick(context: Context) {
-        val vibrator = getVibrator(context) ?: return
-        if (!vibrator.hasVibrator()) return
+    fun isHapticsEnabled(context: Context): Boolean {
+        return try {
+            @Suppress("DEPRECATION")
+            val systemHapticEnabled = Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.HAPTIC_FEEDBACK_ENABLED,
+                1
+            ) != 0
+            if (!systemHapticEnabled) return false
+            val vibrator = getVibrator(context) ?: return false
+            vibrator.hasVibrator()
+        } catch (_: Exception) {
+            false
+        }
+    }
 
+    /**
+     * Checks whether the user has enabled Reduced Motion / disabled animator duration scale in system settings.
+     */
+    fun isReducedMotionEnabled(context: Context): Boolean {
+        return try {
+            val scale = Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1.0f
+            )
+            scale <= 0.05f
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun canTriggerHaptic(context: Context, minIntervalMs: Long): Vibrator? {
+        if (!isHapticsEnabled(context)) return null
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastHapticElapsedMillis < minIntervalMs) return null
+        val vibrator = getVibrator(context) ?: return null
+        if (!vibrator.hasVibrator()) return null
+        lastHapticElapsedMillis = now
+        return vibrator
+    }
+
+    /**
+     * Light feedback: Button taps, navigation selection, and minor interactions.
+     */
+    fun performLight(context: Context) {
+        val vibrator = canTriggerHaptic(context, MIN_LIGHT_INTERVAL_MS) ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_TICK)
+            ) {
+                vibrator.vibrate(
+                    VibrationEffect.startComposition()
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.65f)
+                        .compose()
+                )
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(10, 90))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(10)
+            }
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Medium feedback: Completing a set, adding an exercise, or changing important selections.
+     */
+    fun performMedium(context: Context) {
+        val vibrator = canTriggerHaptic(context, MIN_MEDIUM_INTERVAL_MS) ?: return
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)
             ) {
                 vibrator.vibrate(
                     VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.90f)
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.85f)
                         .compose()
                 )
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -54,135 +138,93 @@ object VivoHapticFeedback {
                 @Suppress("DEPRECATION")
                 vibrator.vibrate(14)
             }
-        } catch (_: Exception) {
-            // Silently ignore if disabled by user's system settings
-        }
-    }
-
-    /**
-     * Subtle micro-tick for toggles, chevrons, tabs, and expand/collapse actions
-     */
-    fun performTick(context: Context) {
-        val vibrator = getVibrator(context) ?: return
-        if (!vibrator.hasVibrator()) return
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_TICK)
-            ) {
-                vibrator.vibrate(
-                    VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.75f)
-                        .compose()
-                )
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(10, 100))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(10)
-            }
         } catch (_: Exception) {}
     }
 
     /**
-     * Deep resonant thud confirmation for completing a heavy gym set, checking in, or saving a plan
+     * Success feedback: Completing a workout or reaching a weekly activity target.
      */
     fun performSuccess(context: Context) {
-        val vibrator = getVibrator(context) ?: return
-        if (!vibrator.hasVibrator()) return
-
+        val vibrator = canTriggerHaptic(context, MIN_STATUS_INTERVAL_MS) ?: return
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 vibrator.areAllPrimitivesSupported(
                     VibrationEffect.Composition.PRIMITIVE_TICK,
-                    VibrationEffect.Composition.PRIMITIVE_THUD
-                )
-            ) {
-                vibrator.vibrate(
-                    VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f, 0)
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 1.0f, 35)
-                        .compose()
-                )
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val timings = longArrayOf(0, 15, 30, 35)
-                val amplitudes = intArrayOf(0, 120, 0, 240)
-                vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(45)
-            }
-        } catch (_: Exception) {}
-    }
-
-    /**
-     * Tactile launch effect for starting a workout, starting an exercise timer, or check-in
-     */
-    fun performLaunch(context: Context) {
-        val vibrator = getVibrator(context) ?: return
-        if (!vibrator.hasVibrator()) return
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                vibrator.areAllPrimitivesSupported(
-                    VibrationEffect.Composition.PRIMITIVE_QUICK_RISE,
                     VibrationEffect.Composition.PRIMITIVE_CLICK
                 )
             ) {
                 vibrator.vibrate(
                     VibrationEffect.startComposition()
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.85f, 0)
-                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 1.0f, 10)
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.6f, 0)
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.95f, 40)
                         .compose()
                 )
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK))
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val timings = longArrayOf(0, 20, 25, 35)
-                val amplitudes = intArrayOf(0, 140, 0, 220)
+                val timings = longArrayOf(0, 12, 35, 18)
+                val amplitudes = intArrayOf(0, 110, 0, 200)
                 vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(50)
+                vibrator.vibrate(30)
             }
         } catch (_: Exception) {}
     }
 
     /**
-     * Expand / shrink accordion chevron tactile feedback
+     * Warning feedback: Invalid actions, destructive operations, or validation errors.
      */
-    fun performAccordionToggle(context: Context, isExpanding: Boolean) {
-        val vibrator = getVibrator(context) ?: return
-        if (!vibrator.hasVibrator()) return
-
+    fun performWarning(context: Context) {
+        val vibrator = canTriggerHaptic(context, MIN_STATUS_INTERVAL_MS) ?: return
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                vibrator.areAllPrimitivesSupported(
-                    VibrationEffect.Composition.PRIMITIVE_SLOW_RISE,
-                    VibrationEffect.Composition.PRIMITIVE_TICK
-                )
+                vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)
             ) {
-                if (isExpanding) {
-                    vibrator.vibrate(
-                        VibrationEffect.startComposition()
-                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_SLOW_RISE, 0.6f, 0)
-                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.85f, 15)
-                            .compose()
-                    )
-                } else {
-                    vibrator.vibrate(
-                        VibrationEffect.startComposition()
-                            .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 0.70f, 0)
-                            .compose()
-                    )
-                }
+                vibrator.vibrate(
+                    VibrationEffect.startComposition()
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.9f, 0)
+                        .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.65f, 55)
+                        .compose()
+                )
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val timings = longArrayOf(0, 16, 45, 16)
+                val amplitudes = intArrayOf(0, 180, 0, 130)
+                vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
             } else {
-                performTick(context)
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(35)
             }
         } catch (_: Exception) {}
     }
+
+    /**
+     * Backwards-compatible aliases mapped to calibrated semantic haptic levels.
+     */
+    fun performClick(context: Context) {
+        performLight(context)
+    }
+
+    fun performTick(context: Context) {
+        performLight(context)
+    }
+
+    fun performLaunch(context: Context) {
+        performMedium(context)
+    }
+
+    fun performAccordionToggle(context: Context, isExpanding: Boolean) {
+        performLight(context)
+    }
 }
+
+@Composable
+fun rememberReducedMotionEnabled(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        VivoHapticFeedback.isReducedMotionEnabled(context)
+    }
+}
+

@@ -75,7 +75,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.local.FitnessDatabase
+import com.example.data.repository.ActivityGoalMode
 import com.example.data.repository.BackupAndRestoreManager
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.ui.components.ActivityRingGoalsModal
 import com.example.ui.components.AppleDropdownField
 import com.example.ui.components.AppleLargePageHeader
 import com.example.ui.components.AppleLiquidGlassTextField
@@ -102,7 +106,9 @@ import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.theme.ThemeMode
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
+import java.text.NumberFormat
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun ProfileAndPrivacyScreen(
@@ -111,6 +117,9 @@ fun ProfileAndPrivacyScreen(
     modifier: Modifier = Modifier
 ) {
     val profile = state.profile
+    val weeklyRings = state.weeklyActivityRings
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    var showRingGoalsModal by rememberSaveable { mutableStateOf(false) }
 
     var nameInput by remember(profile.displayName) { mutableStateOf(profile.displayName) }
     var weightInput by remember(profile.weightKg, state.useLbs) {
@@ -134,6 +143,25 @@ fun ProfileAndPrivacyScreen(
     var jsonBackupText by remember { mutableStateOf("") }
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
+
+    if (showRingGoalsModal) {
+        ActivityRingGoalsModal(
+            metrics = weeklyRings,
+            goalPrefs = state.activityRingGoalPrefs,
+            useLbs = state.useLbs,
+            unitLabel = state.unitLabel,
+            onSelectMode = { mode -> viewModel.setActivityGoalMode(mode) },
+            onSaveCustomGoals = { reps, exercises, volDisplay ->
+                viewModel.saveCustomActivityRingGoals(
+                    weeklyReps = reps,
+                    weeklyExercises = exercises,
+                    weeklyVolumeDisplay = volDisplay,
+                    switchToCustomMode = true
+                )
+            },
+            onDismiss = { showRingGoalsModal = false }
+        )
+    }
 
     LaunchedEffect(
         state.allAttendanceRecords.size,
@@ -199,6 +227,7 @@ fun ProfileAndPrivacyScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .widthIn(max = 720.dp)
@@ -248,6 +277,91 @@ fun ProfileAndPrivacyScreen(
                         }
                     }
                 )
+            }
+
+            // 0. Weekly Activity Rings Goal Settings (Automatic vs. Custom)
+            item(key = "settings_activity_rings_goals_card", contentType = "settings_card") {
+                val intFormatter = remember { NumberFormat.getIntegerInstance(Locale.US) }
+                val displayVolTarget = remember(weeklyRings.volumeTargetKg, state.useLbs) {
+                    val v = if (state.useLbs) FitnessDatabase.kgToLbs(weeklyRings.volumeTargetKg) else weeklyRings.volumeTargetKg
+                    v.roundToInt()
+                }
+                LiquidGlassCard(accentTint = AppleMoveRed) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "Weekly Activity Ring Goals",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${weeklyRings.adaptiveProgressionBadge} • ${weeklyRings.adaptiveProgressionDetail}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        AppleSegmentedControl(
+                            items = ActivityGoalMode.entries.toList(),
+                            selectedItem = state.activityRingGoalPrefs.mode,
+                            onItemSelected = { mode ->
+                                if (mode == ActivityGoalMode.CUSTOM) {
+                                    showRingGoalsModal = true
+                                } else {
+                                    viewModel.setActivityGoalMode(ActivityGoalMode.AUTOMATIC)
+                                }
+                            },
+                            labelProvider = { it.label },
+                            accentColor = AppleMoveRed
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Reps Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${intFormatter.format(weeklyRings.repsTarget)} reps",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleMoveRed
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Exercises Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${intFormatter.format(weeklyRings.exercisesTarget)} exercises",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleExerciseGreen
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Volume Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${intFormatter.format(displayVolTarget)} ${state.unitLabel}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleStandBlue
+                                )
+                            }
+                        }
+
+                        LiquidGlassSecondaryButton(
+                            text = "Configure Weekly Reps, Exercises & Volume Targets",
+                            onClick = { showRingGoalsModal = true },
+                            accentColor = AppleMoveRed,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
 
             // 1. Gym & Progressive Overload Engine Settings
@@ -1080,6 +1194,7 @@ fun ProfileAndPrivacyScreen(
             onDismissRequest = { showJsonBackupModal = false },
             shape = RoundedCornerShape(AppleRadius.bottomSheet),
             containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = {
                 Text(
                     text = "Backup & Restore JSON Data",
@@ -1145,6 +1260,7 @@ fun ProfileAndPrivacyScreen(
             onDismissRequest = { showClearConfirmation = false },
             shape = RoundedCornerShape(AppleRadius.bottomSheet),
             containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = { Text("Clear All Recorded Gym Data?") },
             text = {
                 Text("This clears recorded gym attendance check-ins, saved plans, and workout sessions. An automatic backup snapshot will be saved first so you can restore anytime.")

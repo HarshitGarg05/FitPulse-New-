@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.local.GymAttendanceEntity
 import com.example.data.repository.AnalyticsAndInsightsEngine
 import com.example.data.repository.AnalyticsDateRange
+import com.example.ui.components.AppleDatePickerField
 import com.example.ui.components.AppleDropdownField
 import com.example.ui.components.AppleHealthBarChart
 import com.example.ui.components.AppleLargePageHeader
@@ -90,6 +91,8 @@ import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.theme.AppleTypeScale
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun AttendanceScreen(
@@ -98,6 +101,7 @@ fun AttendanceScreen(
     modifier: Modifier = Modifier
 ) {
     val overview = state.attendanceOverview
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     var selectedDateKey by remember { mutableStateOf<String?>(null) }
     var showLogModalForDateKey by remember { mutableStateOf<String?>(null) }
     var editingRecord by remember { mutableStateOf<GymAttendanceEntity?>(null) }
@@ -125,6 +129,7 @@ fun AttendanceScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(rootCanvasBg)
@@ -211,15 +216,24 @@ fun AttendanceScreen(
                             )
                         }
 
-                        LinearProgressIndicator(
-                            progress = { overview.weeklyGoalProgress },
+                        val goalProgress = overview.weeklyGoalProgress.coerceIn(0f, 1f)
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(10.dp)
-                                .clip(RoundedCornerShape(999.dp)),
-                            color = AppleMoveRed,
-                            trackColor = AppleMoveRed.copy(alpha = 0.15f)
-                        )
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(AppleMoveRed.copy(alpha = 0.15f))
+                        ) {
+                            if (goalProgress > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(goalProgress)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(AppleMoveRed)
+                                )
+                            }
+                        }
 
                         if (showGoalEditor) {
                             val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -229,7 +243,7 @@ fun AttendanceScreen(
                             Surface(
                                 shape = RoundedCornerShape(AppleRadius.nestedCard),
                                 color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                shadowElevation = 0.dp,
                                 border = BorderStroke(
                                     width = if (isDark) 0.5.dp else 1.dp,
                                     color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
@@ -465,9 +479,6 @@ fun AttendanceScreen(
 
     val modalDateKey = showLogModalForDateKey
     if (modalDateKey != null) {
-        val currentOptionLabel = recentDateOptions.firstOrNull { it.first == modalDateKey }?.second
-            ?: "${AnalyticsAndInsightsEngine.formatDateKeyReadable(modalDateKey)} ($modalDateKey)"
-
         AlertDialog(
             onDismissRequest = {
                 showLogModalForDateKey = null
@@ -475,6 +486,7 @@ fun AttendanceScreen(
             },
             shape = RoundedCornerShape(AppleRadius.bottomSheet),
             containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = {
                 Text(
                     text = if (editingRecord != null) "Edit Gym Check-In" else "Log Gym Attendance",
@@ -484,20 +496,18 @@ fun AttendanceScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    AppleDropdownField(
+                    AppleDatePickerField(
                         label = "Select Check-In Date",
-                        selectedValue = currentOptionLabel,
-                        options = recentDateOptions.map { it.second },
-                        onOptionSelected = { selectedLabel ->
-                            val matchedKey = recentDateOptions.firstOrNull { it.second == selectedLabel }?.first
-                            if (matchedKey != null) {
-                                showLogModalForDateKey = matchedKey
-                                val existing = state.allAttendanceRecords.firstOrNull { it.dateKey == matchedKey }
-                                editingRecord = existing
-                                editingNoteText = existing?.note ?: ""
-                                editingDurationText = (existing?.durationMinutes ?: 60).toString()
-                            }
-                        }
+                        selectedDateKey = modalDateKey,
+                        onDateKeySelected = { matchedKey ->
+                            showLogModalForDateKey = matchedKey
+                            val existing = state.allAttendanceRecords.firstOrNull { it.dateKey == matchedKey }
+                            editingRecord = existing
+                            editingNoteText = existing?.note ?: ""
+                            editingDurationText = (existing?.durationMinutes ?: 60).toString()
+                        },
+                        accentColor = AppleSystemBlue,
+                        testTag = "attendance_date_picker_field"
                     )
 
                     AppleLiquidGlassTextField(

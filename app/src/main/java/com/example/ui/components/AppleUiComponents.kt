@@ -47,12 +47,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import com.example.util.VivoHapticFeedback
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -73,6 +76,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -83,10 +87,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -145,9 +154,9 @@ import java.util.Locale
 private val PrimaryCardShape = RoundedCornerShape(20.dp)
 private val NestedCardShape = RoundedCornerShape(16.dp)
 private val NavPillShape = RoundedCornerShape(100.dp)
-private val LightPrimaryCardBorder = BorderStroke(1.dp, Color(0xFFE8E8ED))
+private val LightPrimaryCardBorder = BorderStroke(1.dp, Color(0xFFDCDCE4))
 private val DarkPrimaryCardBorder = BorderStroke(1.dp, AppleCardBorderDark)
-private val LightNestedCardBorder = BorderStroke(1.dp, Color(0xFFEBEBF0))
+private val LightNestedCardBorder = BorderStroke(1.dp, Color(0xFFE2E2EA))
 private val DarkNestedCardBorder = BorderStroke(0.5.dp, AppleNestedCardBorderDark)
 
 /**
@@ -310,7 +319,7 @@ fun AppleNestedCard(
         shape = NestedCardShape,
         color = nestedBg,
         contentColor = if (isDark) AppleTextPrimaryDark else Color(0xFF000000),
-        shadowElevation = if (isDark) 0.dp else 1.dp,
+        shadowElevation = 0.dp,
         tonalElevation = 0.dp,
         border = nestedBorder
     ) {
@@ -774,7 +783,7 @@ fun <T> LiquidGlassDynamicIslandBar(
                                         text = item.label,
                                         fontSize = 10.sp,
                                         lineHeight = 12.sp,
-                                        letterSpacing = (-0.25).sp,
+                                        letterSpacing = 0.sp,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                         color = itemContentColor,
                                         maxLines = 1,
@@ -806,17 +815,21 @@ fun LiquidGlassPrimaryButton(
     enabled: Boolean = true,
     testTag: String? = null
 ) {
+    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        targetValue = if (isPressed && enabled) 0.965f else 1f,
+        animationSpec = tween(durationMillis = 110, easing = FastOutSlowInEasing),
         label = "btnScale"
     )
 
     val shape = RoundedCornerShape(14.dp)
     Button(
-        onClick = onClick,
+        onClick = {
+            VivoHapticFeedback.performLight(context)
+            onClick()
+        },
         enabled = enabled,
         interactionSource = interactionSource,
         shape = shape,
@@ -876,12 +889,13 @@ fun LiquidGlassSecondaryButton(
     accentColor: Color = AppleStandBlue,
     testTag: String? = null
 ) {
+    val context = LocalContext.current
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        targetValue = if (isPressed) 0.965f else 1f,
+        animationSpec = tween(durationMillis = 110, easing = FastOutSlowInEasing),
         label = "secBtnScale"
     )
 
@@ -889,7 +903,10 @@ fun LiquidGlassSecondaryButton(
     val labelAndIconColor = if (isDark) Color.White else MaterialTheme.colorScheme.onSurface
 
     Button(
-        onClick = onClick,
+        onClick = {
+            VivoHapticFeedback.performLight(context)
+            onClick()
+        },
         interactionSource = interactionSource,
         shape = RoundedCornerShape(14.dp),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
@@ -947,8 +964,8 @@ fun <T> AppleSegmentedControl(
     accentColor: Color = AppleMoveRed,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val selectedIndex = items.indexOf(selectedItem).coerceAtLeast(0)
 
     val trackColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceTertiaryLight
     val activePillColor = if (isDark) AppleSurfaceTertiaryDark else AppleSurfaceLight
@@ -967,6 +984,12 @@ fun <T> AppleSegmentedControl(
             items.forEach { item ->
                 val isSelected = item == selectedItem
                 val itemInteraction = remember { MutableInteractionSource() }
+                val isPressed by itemInteraction.collectIsPressedAsState()
+                val pressScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.96f else 1f,
+                    animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing),
+                    label = "segPressScale"
+                )
 
                 val textColor by animateColorAsState(
                     targetValue = if (isSelected) {
@@ -978,9 +1001,19 @@ fun <T> AppleSegmentedControl(
                     label = "segTextColor"
                 )
 
+                val pillFill by animateColorAsState(
+                    targetValue = if (isSelected) activePillColor else Color.Transparent,
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    label = "segPillFill"
+                )
+
                 Surface(
                     modifier = Modifier
                         .weight(1f)
+                        .graphicsLayer {
+                            scaleX = pressScale
+                            scaleY = pressScale
+                        }
                         .then(
                             if (isSelected && !isDark) {
                                 Modifier.shadow(
@@ -994,9 +1027,14 @@ fun <T> AppleSegmentedControl(
                         .clickable(
                             interactionSource = itemInteraction,
                             indication = null
-                        ) { onItemSelected(item) },
+                        ) {
+                            if (!isSelected) {
+                                VivoHapticFeedback.performLight(context)
+                            }
+                            onItemSelected(item)
+                        },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) activePillColor else Color.Transparent
+                    color = pillFill
                 ) {
                     Box(
                         modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
@@ -1057,7 +1095,7 @@ fun AppleDropdownField(
     } else if (isDark) {
         AppleNestedCardBorderDark
     } else {
-        AppleNestedCardBorderLight
+        AppleSeparatorLight
     }
 
     Column(
@@ -1085,8 +1123,9 @@ fun AppleDropdownField(
                 .clickable { expanded = !expanded }
                 .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
             shape = fieldShape,
-            color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-            shadowElevation = if (isDark) 0.dp else 1.dp,
+            color = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp,
             border = BorderStroke(if (expanded) 1.5.dp else 1.dp, triggerBorderColor),
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
@@ -1168,10 +1207,10 @@ fun AppleDropdownField(
                             textStyle = MaterialTheme.typography.bodySmall,
                             shape = RoundedCornerShape(10.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                                unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
+                                unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
                                 focusedBorderColor = AppleMoveRed,
-                                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1250,6 +1289,11 @@ fun AppleDropdownField(
 
 /**
  * Exact Apple iOS Grouped Input Field.
+ * Uses `#F2F2F7` (`AppleBgLight`) container fill and `#D1D1D6` (`AppleSeparatorLight`) border in Light Mode
+ * so typable boxes always stand out clearly against `#FFFFFF` cards and modals.
+ *
+ * Maintains a synchronous Compose `localText` buffer so fast typing into fields backed by asynchronous
+ * `StateFlow` / `ViewModel` state never clamps or jumps the cursor backwards/forwards.
  */
 @Composable
 fun AppleLiquidGlassTextField(
@@ -1267,6 +1311,26 @@ fun AppleLiquidGlassTextField(
     fieldModifier: Modifier = Modifier
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    var localText by remember { mutableStateOf(value) }
+    var lastDispatchedText by remember { mutableStateOf(value) }
+    var isFocused by remember { mutableStateOf(false) }
+
+    // Sync external programmatic changes (e.g. Reset button, loading a template, or when unfocused)
+    // without overwriting in-flight characters while the user is actively typing.
+    LaunchedEffect(value, isFocused) {
+        if (!isFocused) {
+            if (localText != value) {
+                localText = value
+                lastDispatchedText = value
+            }
+        } else if (value != localText && value != lastDispatchedText) {
+            val isStalePrefix = lastDispatchedText.startsWith(value) || value.startsWith(lastDispatchedText)
+            if (!isStalePrefix || (value.isEmpty() && lastDispatchedText.length > 1)) {
+                localText = value
+                lastDispatchedText = value
+            }
+        }
+    }
 
     Column(
         modifier = modifier,
@@ -1285,8 +1349,12 @@ fun AppleLiquidGlassTextField(
         }
 
         OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
+            value = localText,
+            onValueChange = { newText ->
+                localText = newText
+                lastDispatchedText = newText
+                onValueChange(newText)
+            },
             label = null,
             placeholder = if (placeholder.isNotBlank()) {
                 {
@@ -1304,19 +1372,379 @@ fun AppleLiquidGlassTextField(
             singleLine = singleLine,
             maxLines = maxLines,
             keyboardOptions = keyboardOptions,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
             shape = RoundedCornerShape(AppleRadius.inputField),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                cursorColor = accentColor,
+                focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
+                unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
                 focusedBorderColor = accentColor,
-                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
             ),
             modifier = Modifier
                 .fillMaxWidth()
+                .onFocusChanged { isFocused = it.isFocused }
                 .then(if (singleLine) Modifier.height(56.dp) else Modifier.heightIn(min = 56.dp))
                 .then(fieldModifier)
+        )
+    }
+}
+
+private val IsoDateKeyFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US)
+private val ReadableDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
+private val MonthYearHeaderFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.US)
+
+/**
+ * Apple iOS Grouped Date Picker Field & Interactive Calendar Modal.
+ * Replaces truncated date dropdowns with a uniform 56.dp trigger box and a full interactive calendar dialog.
+ */
+@Composable
+fun AppleDatePickerField(
+    label: String,
+    selectedDateKey: String,
+    onDateKeySelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    accentColor: Color = AppleMoveRed,
+    testTag: String? = null
+) {
+    val context = LocalContext.current
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    var showCalendarDialog by remember { mutableStateOf(false) }
+
+    val selectedLocalDate = remember(selectedDateKey) {
+        runCatching { LocalDate.parse(selectedDateKey, IsoDateKeyFormatter) }
+            .getOrElse { LocalDate.now() }
+    }
+    val formattedDisplayDate = remember(selectedLocalDate) {
+        selectedLocalDate.format(ReadableDateFormatter)
+    }
+
+    val fieldShape = RoundedCornerShape(AppleRadius.inputField)
+    val triggerBorderColor = if (showCalendarDialog) {
+        accentColor
+    } else if (isDark) {
+        AppleNestedCardBorderDark
+    } else {
+        AppleSeparatorLight
+    }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (label.isNotBlank()) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 2.dp)
+            )
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(fieldShape)
+                .clickable {
+                    VivoHapticFeedback.performLight(context)
+                    showCalendarDialog = true
+                }
+                .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+            shape = fieldShape,
+            color = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp,
+            border = BorderStroke(if (showCalendarDialog) 1.5.dp else 1.dp, triggerBorderColor),
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = formattedDisplayDate,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = label.ifBlank { "Select Date" },
+                    tint = if (showCalendarDialog) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+
+    if (showCalendarDialog) {
+        var displayedMonth by remember(selectedLocalDate) {
+            mutableStateOf(YearMonth.from(selectedLocalDate))
+        }
+        var pendingSelectedDate by remember(selectedLocalDate) {
+            mutableStateOf(selectedLocalDate)
+        }
+        val today = remember { LocalDate.now() }
+
+        AlertDialog(
+            onDismissRequest = { showCalendarDialog = false },
+            shape = RoundedCornerShape(AppleRadius.bottomSheet),
+            containerColor = if (isDark) AppleSurfaceDark else Color(0xFFFFFFFF),
+            tonalElevation = 0.dp,
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = label.ifBlank { "Select Date" }.uppercase(Locale.US),
+                        style = AppleTypeScale.Caption1,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor
+                    )
+                    Text(
+                        text = pendingSelectedDate.format(ReadableDateFormatter),
+                        style = AppleTypeScale.Title3,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Quick Shortcuts Row (Today / Yesterday)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val isTodaySelected = pendingSelectedDate == today
+                        val yesterday = today.minusDays(1)
+                        val isYesterdaySelected = pendingSelectedDate == yesterday
+
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    VivoHapticFeedback.performLight(context)
+                                    pendingSelectedDate = today
+                                    displayedMonth = YearMonth.from(today)
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isTodaySelected) accentColor.copy(alpha = 0.16f) else if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
+                            border = BorderStroke(
+                                1.dp,
+                                if (isTodaySelected) accentColor else if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Today",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isTodaySelected) accentColor else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    VivoHapticFeedback.performLight(context)
+                                    pendingSelectedDate = yesterday
+                                    displayedMonth = YearMonth.from(yesterday)
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isYesterdaySelected) accentColor.copy(alpha = 0.16f) else if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
+                            border = BorderStroke(
+                                1.dp,
+                                if (isYesterdaySelected) accentColor else if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Yesterday",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isYesterdaySelected) accentColor else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    // Month Navigation Bar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                VivoHapticFeedback.performLight(context)
+                                displayedMonth = displayedMonth.minusMonths(1)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                contentDescription = "Previous Month",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Text(
+                            text = displayedMonth.atDay(1).format(MonthYearHeaderFormatter),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        IconButton(
+                            onClick = {
+                                VivoHapticFeedback.performLight(context)
+                                displayedMonth = displayedMonth.plusMonths(1)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Next Month",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Weekday Headers (Mon - Sun)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        listOf("M", "T", "W", "T", "F", "S", "S").forEach { dayLetter ->
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = dayLetter,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Calendar Days Grid
+                    val firstOfMonth = displayedMonth.atDay(1)
+                    val leadingEmptyDays = (firstOfMonth.dayOfWeek.value - DayOfWeek.MONDAY.value + 7) % 7
+                    val daysInMonth = displayedMonth.lengthOfMonth()
+                    val totalCells = ((leadingEmptyDays + daysInMonth + 6) / 7) * 7
+                    val rows = totalCells / 7
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (r in 0 until rows) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                for (c in 0 until 7) {
+                                    val cellIndex = r * 7 + c
+                                    val dayNumber = cellIndex - leadingEmptyDays + 1
+                                    if (dayNumber in 1..daysInMonth) {
+                                        val cellDate = displayedMonth.atDay(dayNumber)
+                                        val isSelected = cellDate == pendingSelectedDate
+                                        val isToday = cellDate == today
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(38.dp)
+                                                .padding(horizontal = 2.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    when {
+                                                        isSelected -> accentColor
+                                                        isToday -> accentColor.copy(alpha = 0.14f)
+                                                        else -> Color.Transparent
+                                                    }
+                                                )
+                                                .clickable {
+                                                    VivoHapticFeedback.performLight(context)
+                                                    pendingSelectedDate = cellDate
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = dayNumber.toString(),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium,
+                                                color = when {
+                                                    isSelected -> Color.White
+                                                    isToday -> accentColor
+                                                    else -> MaterialTheme.colorScheme.onSurface
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(38.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                LiquidGlassPrimaryButton(
+                    text = "Confirm Date",
+                    onClick = {
+                        onDateKeySelected(pendingSelectedDate.format(IsoDateKeyFormatter))
+                        showCalendarDialog = false
+                    },
+                    accentColor = accentColor
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { showCalendarDialog = false }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         )
     }
 }
@@ -1360,9 +1788,10 @@ fun AppleMultiSelectExerciseDropdown(
                 .clickable { expanded = !expanded }
                 .testTag("routine_exercises_dropdown_trigger"),
             shape = RoundedCornerShape(AppleRadius.nestedCard),
-            color = if (isDark) AppleHealthDarkContainer else AppleHealthLightContainer,
-            shadowElevation = if (isDark) 0.dp else 1.dp,
-            border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight),
+            color = if (isDark) AppleHealthDarkContainer else AppleBgLight,
+            shadowElevation = 0.dp,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight),
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Row(
@@ -1405,9 +1834,10 @@ fun AppleMultiSelectExerciseDropdown(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(AppleRadius.inputField),
-                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                shadowElevation = if (isDark) 0.dp else 1.dp,
-                border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight)
+                color = if (isDark) AppleSurfaceSecondaryDark else Color(0xFFFFFFFF),
+                shadowElevation = if (isDark) 0.dp else 2.dp,
+                tonalElevation = 0.dp,
+                border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleCardBorderLight)
             ) {
                 Column(
                     modifier = Modifier
@@ -1430,6 +1860,12 @@ fun AppleMultiSelectExerciseDropdown(
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodySmall,
                         shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = if (isDark) AppleSurfaceDark else AppleBgLight,
+                            unfocusedContainerColor = if (isDark) AppleSurfaceDark else AppleBgLight,
+                            focusedBorderColor = AppleMoveRed,
+                            unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
 

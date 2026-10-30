@@ -100,6 +100,8 @@ import com.example.ui.theme.AppleTextInverseLight
 import com.example.ui.theme.AppleTypeScale
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -109,6 +111,7 @@ fun GoalsAndRecoveryScreen(
     viewModel: FitnessViewModel,
     modifier: Modifier = Modifier
 ) {
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     var selectedMetric by remember { mutableStateOf(ProgressionChartMetric.TOP_WEIGHT) }
     var editingExercise by remember { mutableStateOf<ExerciseEntity?>(null) }
     var showCreateExerciseModal by remember { mutableStateOf(false) }
@@ -138,6 +141,7 @@ fun GoalsAndRecoveryScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(rootCanvasBg)
@@ -413,7 +417,7 @@ private fun RecoveryAndGoalsOverviewCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(AppleRadius.nestedCard),
                 color = nestedBg,
-                shadowElevation = if (isDark) 0.dp else 1.dp,
+                shadowElevation = 0.dp,
                 border = nestedBorder
             ) {
                 Column(
@@ -424,6 +428,7 @@ private fun RecoveryAndGoalsOverviewCard(
                 ) {
                     // Active Goal: Weekly Attendance
                     val attendanceProgress = (weeklyVisits.toFloat() / weeklyGoal.toFloat()).coerceIn(0f, 1f)
+                    val attendanceBarColor = if (weeklyVisits >= weeklyGoal) AppleStateSuccess else AppleMove
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -439,18 +444,26 @@ private fun RecoveryAndGoalsOverviewCard(
                                 text = "$weeklyVisits/$weeklyGoal days",
                                 style = AppleTypeScale.Footnote,
                                 fontWeight = FontWeight.Bold,
-                                color = if (weeklyVisits >= weeklyGoal) AppleStateSuccess else AppleMove
+                                color = attendanceBarColor
                             )
                         }
-                        LinearProgressIndicator(
-                            progress = { attendanceProgress },
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(7.dp)
-                                .clip(RoundedCornerShape(AppleRadius.pill)),
-                            color = if (weeklyVisits >= weeklyGoal) AppleStateSuccess else AppleMove,
-                            trackColor = trackColor
-                        )
+                                .clip(RoundedCornerShape(AppleRadius.pill))
+                                .background(trackColor)
+                        ) {
+                            if (attendanceProgress > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(attendanceProgress)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(AppleRadius.pill))
+                                        .background(attendanceBarColor)
+                                )
+                            }
+                        }
                     }
 
                     // Active Goal: Weekly Training Sets
@@ -473,20 +486,28 @@ private fun RecoveryAndGoalsOverviewCard(
                                 color = AppleExercise
                             )
                         }
-                        LinearProgressIndicator(
-                            progress = { setsProgress },
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(7.dp)
-                                .clip(RoundedCornerShape(AppleRadius.pill)),
-                            color = AppleExercise,
-                            trackColor = trackColor
-                        )
+                                .clip(RoundedCornerShape(AppleRadius.pill))
+                                .background(trackColor)
+                        ) {
+                            if (setsProgress > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(setsProgress)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(AppleRadius.pill))
+                                        .background(AppleExercise)
+                                )
+                            }
+                        }
                     }
 
                     // Upcoming Milestone: Personal Records
                     val nextPrTarget = ((prCount / 5) + 1) * 5
-                    val prProgress = (prCount.toFloat() / nextPrTarget.toFloat()).coerceIn(0.06f, 1f)
+                    val prProgress = (prCount.toFloat() / nextPrTarget.toFloat()).coerceIn(0f, 1f)
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -505,15 +526,23 @@ private fun RecoveryAndGoalsOverviewCard(
                                 color = AppleStrengthProgression
                             )
                         }
-                        LinearProgressIndicator(
-                            progress = { prProgress },
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(7.dp)
-                                .clip(RoundedCornerShape(AppleRadius.pill)),
-                            color = AppleStrengthProgression,
-                            trackColor = trackColor
-                        )
+                                .clip(RoundedCornerShape(AppleRadius.pill))
+                                .background(trackColor)
+                        ) {
+                            if (prProgress > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(prProgress)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(AppleRadius.pill))
+                                        .background(AppleStrengthProgression)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -604,7 +633,7 @@ private fun ProgressiveOverloadDetailCard(
             Surface(
                 shape = RoundedCornerShape(AppleRadius.nestedCard),
                 color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                shadowElevation = if (isDark) 0.dp else 1.dp,
+                shadowElevation = 0.dp,
                 border = BorderStroke(
                     width = if (isDark) 0.5.dp else 1.dp,
                     color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
@@ -855,6 +884,7 @@ private fun ExerciseEditorDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(AppleRadius.bottomSheet),
         containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = {
             Text(
                 text = if (existing != null) "Edit Exercise" else "Add Custom Exercise",

@@ -7,10 +7,66 @@ import com.example.data.local.UserProfileEntity
 import com.example.data.local.WorkoutSessionEntity
 import com.example.data.local.WorkoutSetEntity
 import java.text.SimpleDateFormat
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
+
+data class CompletedWeekRingSnapshot(
+    val weekMondayKey: String,
+    val weekSundayKey: String,
+    val weekRangeLabel: String,
+    val repsCompleted: Int,
+    val exercisesCompleted: Int,
+    val volumeCompletedKg: Float,
+    val workoutsCount: Int
+)
+
+data class WeeklyActivityRingMetrics(
+    val weekMondayKey: String = "",
+    val weekSundayKey: String = "",
+    val weekRangeLabel: String = "",
+    val zoneIdName: String = "",
+    val goalMode: ActivityGoalMode = ActivityGoalMode.AUTOMATIC,
+    // Outer Ring: Reps
+    val repsCompleted: Int = 0,
+    val repsTarget: Int = 600,
+    val repsProgress: Float = 0f,
+    val repsGoalMet: Boolean = false,
+    // Middle Ring: Exercises
+    val exercisesCompleted: Int = 0,
+    val exercisesTarget: Int = 16,
+    val exercisesProgress: Float = 0f,
+    val exercisesGoalMet: Boolean = false,
+    // Inner Ring: Volume (Weight × Reps across completed weighted sets)
+    val volumeCompletedKg: Float = 0f,
+    val volumeTargetKg: Float = 10000f,
+    val volumeProgress: Float = 0f,
+    val volumeGoalMet: Boolean = false,
+    // Summary & Adaptive Goal Metadata
+    val overallWeeklyCompletionPct: Int = 0,
+    val completedRingsCount: Int = 0,
+    val workoutsThisWeek: Int = 0,
+    val autoBaselineReps: Int = 600,
+    val autoBaselineExercises: Int = 16,
+    val autoBaselineVolumeKg: Float = 10000f,
+    val autoTargetReps: Int = 600,
+    val autoTargetExercises: Int = 16,
+    val autoTargetVolumeKg: Float = 10000f,
+    val completedWeeksUsedForBaseline: Int = 0,
+    val previousWeekCompletionPct: Int = 0,
+    val adaptiveProgressionBadge: String = "Starter Baseline",
+    val adaptiveProgressionDetail: String = "Calibrated from your training profile",
+    val historicalWeeks: List<CompletedWeekRingSnapshot> = emptyList()
+)
 
 enum class AnalyticsDateRange(val label: String, val shortLabel: String, val days: Int?) {
     DAYS_7("1 Week", "Week", 7),
@@ -1192,6 +1248,354 @@ object AnalyticsAndInsightsEngine {
                 volPoints to setPoints
             }
         }
+    }
+
+    // --- WEEKLY ACTIVITY RINGS (REPS, EXERCISES, VOLUME) & ADAPTIVE GOAL PROGRESSION ---
+
+    private fun resolveSessionLocalDate(
+        session: WorkoutSessionEntity,
+        zoneId: ZoneId
+    ): LocalDate {
+        val tsDate = if (session.timestampMillis > 0L) {
+            Instant.ofEpochMilli(session.timestampMillis).atZone(zoneId).toLocalDate()
+        } else {
+            null
+        }
+        val parsedKeyDate = runCatching { LocalDate.parse(session.dateKey.trim()) }.getOrNull()
+
+        return when {
+            tsDate != null && parsedKeyDate != null -> {
+                // If within 1 day, prefer the authoritative completion timestamp in local timezone
+                // (handles workouts started before midnight Sunday and finished after midnight Monday).
+                // If > 1 day apart, the user explicitly backdated the workout date.
+                if (abs(ChronoUnit.DAYS.between(parsedKeyDate, tsDate)) <= 1L) tsDate else parsedKeyDate
+            }
+            tsDate != null -> tsDate
+            parsedKeyDate != null -> parsedKeyDate
+            else -> Instant.now().atZone(zoneId).toLocalDate()
+        }
+    }
+
+    private fun computeStarterTargets(profile: UserProfileEntity): Triple<Int, Int, Float> {
+        val freq = profile.weeklyAttendanceGoal.coerceIn(1, 7)
+        val level = profile.fitnessLevel.trim().lowercase(Locale.US)
+        val (repsPerSession, exercisesPerSession, volumePerSessionKg) = when {
+            level.contains("advanced") -> Triple(190, 5.0f, 3800f)
+            level.contains("intermediate") -> Triple(150, 4.5f, 2800f)
+            else -> Triple(115, 4.0f, 1800f) // Beginner / default conservative starter
+        }
+        val starterReps = ((repsPerSession * freq) / 10.0).roundToInt().coerceAtLeast(10) * 10
+        val starterExercises = (exercisesPerSession * freq).roundToInt().coerceAtLeast(4)
+        val starterVolumeKg = (((volumePerSessionKg * freq) / 100f).roundToInt().coerceAtLeast(5) * 100).toFloat()
+        return Triple(starterReps, starterExercises, starterVolumeKg)
+    }
+
+    private fun progressionMultiplierForCompletionPct(completionPct: Float): Float {
+        return when {
+            completionPct < 70f -> 1.00f
+            completionPct < 90f -> 1.02f
+            else -> 1.05f // 90% to 109% -> +5%, 110% or higher -> capped at maximum +5%
+        }
+    }
+
+    private fun formatWeekRangeLabel(monday: LocalDate, sunday: LocalDate): String {
+        val shortFmt = DateTimeFormatter.ofPattern("MMM d", Locale.US)
+        return "${monday.format(shortFmt)} – ${sunday.format(shortFmt)}"
+    }
+
+    fun buildWeeklyActivityRingMetrics(
+        completedSessions: List<WorkoutSessionEntity>,
+        allSets: List<WorkoutSetEntity>,
+        profile: UserProfileEntity,
+        goalPrefs: ActivityRingGoalPrefs,
+        activeWorkoutSets: List<DraftSetEntry> = emptyList(),
+        editingCompletedSessionId: Long? = null,
+        nowMillis: Long = System.currentTimeMillis(),
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): WeeklyActivityRingMetrics {
+        val currentLocalDate = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
+        val currentWeekMonday = currentLocalDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val currentWeekSunday = currentWeekMonday.plusDays(6)
+
+        val validSessions = completedSessions.filter { !it.isDraft && it.id != editingCompletedSessionId }
+        val setsBySessionId = allSets.groupBy { it.sessionId }
+
+        data class SessionMetrics(
+            val sessionId: Long,
+            val weekMonday: LocalDate,
+            val completedReps: Int,
+            val completedExercises: Int,
+            val weightedVolumeKg: Float
+        )
+
+        val sessionMetricsList = validSessions.mapNotNull { session ->
+            val rawSets = setsBySessionId[session.id].orEmpty()
+            val completedSets = rawSets.filter { it.status == "COMPLETED" && it.reps > 0 }
+            if (completedSets.isEmpty() && session.totalSets <= 0) return@mapNotNull null
+
+            val sessionDate = resolveSessionLocalDate(session, zoneId)
+            val weekMonday = sessionDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+            val reps = if (completedSets.isNotEmpty()) {
+                completedSets.sumOf { it.reps.coerceAtLeast(0) }
+            } else {
+                0
+            }
+            val exercises = if (completedSets.isNotEmpty()) {
+                completedSets.map { it.exerciseName.trim().lowercase(Locale.US) }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .size
+            } else {
+                session.exerciseCount.coerceAtLeast(0)
+            }
+            // Volume: Weight * Reps across all completed weighted sets (exclude unweighted bodyweight exercises)
+            val weightedVolKg = if (completedSets.isNotEmpty()) {
+                completedSets.fold(0f) { acc, set ->
+                    val setVol = if (!set.isBodyweight && set.weightKg > 0f && set.reps > 0) {
+                        set.weightKg * set.reps
+                    } else if (set.isBodyweight && !set.isAssisted && set.weightKg > 0f && set.reps > 0) {
+                        // External added weight on a weighted calisthenics movement
+                        set.weightKg * set.reps
+                    } else {
+                        0f
+                    }
+                    acc + setVol
+                }
+            } else {
+                session.totalVolumeKg.coerceAtLeast(0f)
+            }
+
+            SessionMetrics(
+                sessionId = session.id,
+                weekMonday = weekMonday,
+                completedReps = reps,
+                completedExercises = exercises,
+                weightedVolumeKg = weightedVolKg
+            )
+        }
+
+        val sessionsByWeekMonday = sessionMetricsList.groupBy { it.weekMonday }
+
+        // Current week metrics (including any active live workout sets being logged right now)
+        val currentWeekSessions = sessionsByWeekMonday[currentWeekMonday].orEmpty()
+        val liveCompletedSets = activeWorkoutSets.filter { it.status == "COMPLETED" && it.reps > 0 }
+        val liveReps = liveCompletedSets.sumOf { it.reps.coerceAtLeast(0) }
+        val liveExercises = liveCompletedSets
+            .map { it.exerciseName.trim().lowercase(Locale.US) }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .size
+        val liveWeightedVolumeKg = liveCompletedSets.fold(0f) { acc, set ->
+            val setVol = if (!set.isBodyweight && set.weightKg > 0f && set.reps > 0) {
+                set.weightKg * set.reps
+            } else if (set.isBodyweight && !set.isAssisted && set.weightKg > 0f && set.reps > 0) {
+                set.weightKg * set.reps
+            } else {
+                0f
+            }
+            acc + setVol
+        }
+
+        val currentRepsCompleted = currentWeekSessions.sumOf { it.completedReps } + liveReps
+        val currentExercisesCompleted = currentWeekSessions.sumOf { it.completedExercises } + liveExercises
+        val currentVolumeCompletedKg = currentWeekSessions.fold(0f) { acc, s -> acc + s.weightedVolumeKg } + liveWeightedVolumeKg
+        val currentWorkoutsCount = currentWeekSessions.size + if (liveCompletedSets.isNotEmpty()) 1 else 0
+
+        // Historical completed weeks (strictly before currentWeekMonday)
+        val historicalSnapshots = sessionsByWeekMonday
+            .filterKeys { it.isBefore(currentWeekMonday) }
+            .entries
+            .sortedByDescending { it.key }
+            .map { (monday, weekSessions) ->
+                val sunday = monday.plusDays(6)
+                CompletedWeekRingSnapshot(
+                    weekMondayKey = monday.toString(),
+                    weekSundayKey = sunday.toString(),
+                    weekRangeLabel = formatWeekRangeLabel(monday, sunday),
+                    repsCompleted = weekSessions.sumOf { it.completedReps },
+                    exercisesCompleted = weekSessions.sumOf { it.completedExercises },
+                    volumeCompletedKg = weekSessions.fold(0f) { acc, s -> acc + s.weightedVolumeKg },
+                    workoutsCount = weekSessions.size
+                )
+            }
+            .filter { it.workoutsCount > 0 && (it.repsCompleted > 0 || it.exercisesCompleted > 0 || it.volumeCompletedKg > 0f) }
+
+        val (starterReps, starterExercises, starterVolumeKg) = computeStarterTargets(profile)
+
+        // Rolling 3-week average from up to the last 3 completed weeks
+        val baselineWeeks = historicalSnapshots.take(3)
+        val weeksUsed = baselineWeeks.size
+
+        val autoBaselineReps: Int
+        val autoBaselineExercises: Int
+        val autoBaselineVolumeKg: Float
+        val autoTargetReps: Int
+        val autoTargetExercises: Int
+        val autoTargetVolumeKg: Float
+        val prevWeekCompletionPct: Int
+        val progressionBadge: String
+        val progressionDetail: String
+
+        if (baselineWeeks.isEmpty()) {
+            autoBaselineReps = starterReps
+            autoBaselineExercises = starterExercises
+            autoBaselineVolumeKg = starterVolumeKg
+            autoTargetReps = starterReps
+            autoTargetExercises = starterExercises
+            autoTargetVolumeKg = starterVolumeKg
+            prevWeekCompletionPct = 0
+            val freq = profile.weeklyAttendanceGoal.coerceIn(1, 7)
+            progressionBadge = "Starter Target"
+            progressionDetail = "Conservative starter goal for ${profile.fitnessLevel} (${freq}d/week)"
+        } else {
+            val avgReps = baselineWeeks.map { it.repsCompleted }.average().toFloat()
+            val avgExercises = baselineWeeks.map { it.exercisesCompleted }.average().toFloat()
+            val avgVol = baselineWeeks.map { it.volumeCompletedKg.toDouble() }.average().toFloat()
+
+            autoBaselineReps = ((avgReps / 5f).roundToInt() * 5).coerceAtLeast(50)
+            autoBaselineExercises = avgExercises.roundToInt().coerceAtLeast(3)
+            autoBaselineVolumeKg = ((avgVol / 50f).roundToInt() * 50f).coerceAtLeast(250f)
+
+            // Check previous calendar week's performance (currentWeekMonday.minusWeeks(1))
+            val lastCalendarWeekMondayKey = currentWeekMonday.minusWeeks(1).toString()
+            val lastCalendarWeekSnapshot = historicalSnapshots.find { it.weekMondayKey == lastCalendarWeekMondayKey }
+
+            // Compute previous week's reference baseline (up to 3 completed weeks prior to that week, or starter)
+            val priorToLastWeeks = historicalSnapshots
+                .filter { it.weekMondayKey < lastCalendarWeekMondayKey }
+                .take(3)
+            val refReps = if (priorToLastWeeks.isNotEmpty()) {
+                priorToLastWeeks.map { it.repsCompleted }.average().toFloat().coerceAtLeast(50f)
+            } else {
+                starterReps.toFloat()
+            }
+            val refEx = if (priorToLastWeeks.isNotEmpty()) {
+                priorToLastWeeks.map { it.exercisesCompleted }.average().toFloat().coerceAtLeast(3f)
+            } else {
+                starterExercises.toFloat()
+            }
+            val refVol = if (priorToLastWeeks.isNotEmpty()) {
+                priorToLastWeeks.map { it.volumeCompletedKg.toDouble() }.average().toFloat().coerceAtLeast(250f)
+            } else {
+                starterVolumeKg
+            }
+
+            val lastRepsPct = if (lastCalendarWeekSnapshot != null) {
+                (lastCalendarWeekSnapshot.repsCompleted.toFloat() / refReps) * 100f
+            } else {
+                0f
+            }
+            val lastExPct = if (lastCalendarWeekSnapshot != null) {
+                (lastCalendarWeekSnapshot.exercisesCompleted.toFloat() / refEx) * 100f
+            } else {
+                0f
+            }
+            val lastVolPct = if (lastCalendarWeekSnapshot != null) {
+                (lastCalendarWeekSnapshot.volumeCompletedKg / refVol) * 100f
+            } else {
+                0f
+            }
+
+            val avgPrevCompletionPct = if (lastCalendarWeekSnapshot != null) {
+                ((lastRepsPct + lastExPct + lastVolPct) / 3f).roundToInt()
+            } else {
+                0
+            }
+            prevWeekCompletionPct = avgPrevCompletionPct
+
+            val repsMult = progressionMultiplierForCompletionPct(lastRepsPct)
+            val exMult = progressionMultiplierForCompletionPct(lastExPct)
+            val volMult = progressionMultiplierForCompletionPct(lastVolPct)
+
+            autoTargetReps = (((avgReps * repsMult) / 5f).roundToInt() * 5).coerceAtLeast(50)
+            autoTargetExercises = (avgExercises * exMult).roundToInt().coerceAtLeast(3)
+            autoTargetVolumeKg = (((avgVol * volMult) / 50f).roundToInt() * 50f).coerceAtLeast(250f)
+
+            val overallMultPct = when {
+                avgPrevCompletionPct < 70 -> 0
+                avgPrevCompletionPct < 90 -> 2
+                else -> 5
+            }
+            val weekWord = if (weeksUsed == 1) "1 completed week" else "$weeksUsed-week rolling avg"
+            if (lastCalendarWeekSnapshot == null) {
+                progressionBadge = "Steady Target (+0%)"
+                progressionDetail = "Based on $weekWord • No workouts logged last week"
+            } else if (overallMultPct == 0) {
+                progressionBadge = "Steady Target (+0%)"
+                progressionDetail = "Based on $weekWord • Last week ${avgPrevCompletionPct}% (<70%)"
+            } else {
+                progressionBadge = "Adaptive +$overallMultPct%"
+                progressionDetail = "Based on $weekWord • Last week ${avgPrevCompletionPct}% completion"
+            }
+        }
+
+        val activeRepsTarget = if (goalPrefs.mode == ActivityGoalMode.CUSTOM) {
+            goalPrefs.customWeeklyReps.coerceAtLeast(10)
+        } else {
+            autoTargetReps
+        }
+        val activeExercisesTarget = if (goalPrefs.mode == ActivityGoalMode.CUSTOM) {
+            goalPrefs.customWeeklyExercises.coerceAtLeast(1)
+        } else {
+            autoTargetExercises
+        }
+        val activeVolumeTargetKg = if (goalPrefs.mode == ActivityGoalMode.CUSTOM) {
+            goalPrefs.customWeeklyVolumeKg.coerceAtLeast(50f)
+        } else {
+            autoTargetVolumeKg
+        }
+
+        val repsProg = (currentRepsCompleted.toFloat() / activeRepsTarget.toFloat()).coerceAtLeast(0f)
+        val exercisesProg = (currentExercisesCompleted.toFloat() / activeExercisesTarget.toFloat()).coerceAtLeast(0f)
+        val volumeProg = (currentVolumeCompletedKg / activeVolumeTargetKg).coerceAtLeast(0f)
+
+        val repsMet = currentRepsCompleted >= activeRepsTarget
+        val exercisesMet = currentExercisesCompleted >= activeExercisesTarget
+        val volumeMet = currentVolumeCompletedKg >= activeVolumeTargetKg
+        val ringsClosed = listOf(repsMet, exercisesMet, volumeMet).count { it }
+
+        val overallWeeklyPct = (((repsProg.coerceAtMost(1f) + exercisesProg.coerceAtMost(1f) + volumeProg.coerceAtMost(1f)) / 3f) * 100f)
+            .roundToInt()
+            .coerceIn(0, 100)
+
+        return WeeklyActivityRingMetrics(
+            weekMondayKey = currentWeekMonday.toString(),
+            weekSundayKey = currentWeekSunday.toString(),
+            weekRangeLabel = formatWeekRangeLabel(currentWeekMonday, currentWeekSunday),
+            zoneIdName = zoneId.id,
+            goalMode = goalPrefs.mode,
+            repsCompleted = currentRepsCompleted,
+            repsTarget = activeRepsTarget,
+            repsProgress = repsProg,
+            repsGoalMet = repsMet,
+            exercisesCompleted = currentExercisesCompleted,
+            exercisesTarget = activeExercisesTarget,
+            exercisesProgress = exercisesProg,
+            exercisesGoalMet = exercisesMet,
+            volumeCompletedKg = currentVolumeCompletedKg,
+            volumeTargetKg = activeVolumeTargetKg,
+            volumeProgress = volumeProg,
+            volumeGoalMet = volumeMet,
+            overallWeeklyCompletionPct = overallWeeklyPct,
+            completedRingsCount = ringsClosed,
+            workoutsThisWeek = currentWorkoutsCount,
+            autoBaselineReps = autoBaselineReps,
+            autoBaselineExercises = autoBaselineExercises,
+            autoBaselineVolumeKg = autoBaselineVolumeKg,
+            autoTargetReps = autoTargetReps,
+            autoTargetExercises = autoTargetExercises,
+            autoTargetVolumeKg = autoTargetVolumeKg,
+            completedWeeksUsedForBaseline = weeksUsed,
+            previousWeekCompletionPct = prevWeekCompletionPct,
+            adaptiveProgressionBadge = if (goalPrefs.mode == ActivityGoalMode.CUSTOM) "Custom Weekly Goals" else progressionBadge,
+            adaptiveProgressionDetail = if (goalPrefs.mode == ActivityGoalMode.CUSTOM) {
+                "Manual weekly targets configured by you"
+            } else {
+                progressionDetail
+            },
+            historicalWeeks = historicalSnapshots.take(6)
+        )
     }
 
     private fun formatDecimal(value: Float): String {

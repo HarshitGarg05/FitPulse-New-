@@ -60,6 +60,12 @@ import com.example.data.repository.AnalyticsDateRange
 import com.example.data.repository.ExerciseProgressionReport
 import com.example.data.repository.OverloadStatus
 import com.example.data.repository.PersonalRecordItem
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.ui.components.ActivityRingGoalsModal
 import com.example.ui.components.AppleActivityRingsCardContent
 import com.example.ui.components.AppleDropdownField
 import com.example.ui.components.AppleHealthBarChart
@@ -118,13 +124,35 @@ fun DashboardScreen(
 ) {
     val analytics = state.dashboardAnalytics
     val attendance = state.attendanceOverview
+    val weeklyRings = state.weeklyActivityRings
     val todayReadable = remember(attendance.todayDateKey) {
         AnalyticsAndInsightsEngine.formatDateKeyReadable(attendance.todayDateKey).uppercase(Locale.US)
     }
     var selectedProgressionMetric by remember { mutableStateOf(ProgressionChartMetric.TOP_WEIGHT) }
+    var showRingGoalsModal by rememberSaveable { mutableStateOf(false) }
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val rootCanvasBg = if (isDark) Color(0xFF000000) else Color(0xFFF2F2F7)
+
+    if (showRingGoalsModal) {
+        ActivityRingGoalsModal(
+            metrics = weeklyRings,
+            goalPrefs = state.activityRingGoalPrefs,
+            useLbs = state.useLbs,
+            unitLabel = state.unitLabel,
+            onSelectMode = { mode -> viewModel.setActivityGoalMode(mode) },
+            onSaveCustomGoals = { reps, exercises, volDisplay ->
+                viewModel.saveCustomActivityRingGoals(
+                    weeklyReps = reps,
+                    weeklyExercises = exercises,
+                    weeklyVolumeDisplay = volDisplay,
+                    switchToCustomMode = true
+                )
+            },
+            onDismiss = { showRingGoalsModal = false }
+        )
+    }
 
     // LEVEL 1: Main screen background (#F2F2F7 in Light Mode)
     AppleScreenContainer(
@@ -133,6 +161,7 @@ fun DashboardScreen(
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(rootCanvasBg)
@@ -187,7 +216,7 @@ fun DashboardScreen(
                 )
             }
 
-            // 2A. Today's Activity Summary & Activity Rings Card (Standalone Level-2 White Card)
+            // 2A. Weekly Activity Rings Card (Reps, Exercises, Volume — Standalone Level-2 White Card)
             item(key = "dashboard_activity_rings", contentType = "rings_card") {
                 LiquidGlassCard(
                     accentTint = AppleMoveRed,
@@ -201,7 +230,7 @@ fun DashboardScreen(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    text = "DAILY ACTIVITY RINGS",
+                                    text = "WEEKLY ACTIVITY RINGS",
                                     style = AppleTypeScale.Caption1,
                                     fontWeight = FontWeight.Bold,
                                     color = AppleMoveRed
@@ -214,44 +243,16 @@ fun DashboardScreen(
                                 )
                             }
                             com.example.ui.components.AppleCircularAccessory(
-                                onClick = { viewModel.selectTab(AppDestination.ATTENDANCE) },
-                                contentDescription = "View Activity Details"
+                                onClick = { showRingGoalsModal = true },
+                                contentDescription = "Configure Weekly Activity Ring Goals"
                             )
                         }
 
-                        val weeklyDateKeys = remember(attendance.weeklyAttendanceSeries) {
-                            attendance.weeklyAttendanceSeries.map { it.dateKey }.toSet()
-                        }
-                        val exerciseMinutesThisWeek = remember(
-                            weeklyDateKeys,
-                            state.allAttendanceRecords,
-                            state.completedSessions,
-                            state.activeWorkout.elapsedSeconds
-                        ) {
-                            val attByDay = state.allAttendanceRecords
-                                .filter { weeklyDateKeys.contains(it.dateKey) }
-                                .groupBy { it.dateKey }
-                            val sessionsByDay = state.completedSessions
-                                .filter { !it.isDraft && weeklyDateKeys.contains(it.dateKey) }
-                                .groupBy { it.dateKey }
-                            val dailyMinutes = weeklyDateKeys.sumOf { dayKey ->
-                                val attMins = attByDay[dayKey]?.sumOf { it.durationMinutes.coerceAtLeast(45) } ?: 0
-                                val sessMins = sessionsByDay[dayKey]?.sumOf { it.durationMinutes.coerceAtLeast(15) } ?: 0
-                                maxOf(attMins, sessMins)
-                            }
-                            dailyMinutes + (state.activeWorkout.elapsedSeconds / 60)
-                        }
-                        val weeklyMinutesTarget = (attendance.weeklyGoalDays * 60).coerceAtLeast(60)
-
                         AppleActivityRingsCardContent(
-                            attendanceDaysThisWeek = attendance.weeklyVisitDays,
-                            attendanceWeeklyGoal = attendance.weeklyGoalDays,
-                            exerciseMinutesThisWeek = exerciseMinutesThisWeek,
-                            weeklyMinutesTarget = weeklyMinutesTarget,
-                            currentStreakDays = attendance.currentStreakDays,
-                            weeklyVolumeKg = analytics.periodTotalVolumeKg,
-                            weeklyVolumeTargetKg = (attendance.weeklyGoalDays * 2500f).coerceAtLeast(3000f),
-                            todayVolumeLabel = viewModel.formatVolume(analytics.volumeTodayKg)
+                            metrics = weeklyRings,
+                            useLbs = state.useLbs,
+                            unitLabel = state.unitLabel,
+                            onConfigureGoalsClick = { showRingGoalsModal = true }
                         )
                     }
                 }
@@ -288,7 +289,7 @@ fun DashboardScreen(
                             Surface(
                                 shape = RoundedCornerShape(AppleRadius.nestedCard),
                                 color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                shadowElevation = 0.dp,
                                 border = nestedBorder
                             ) {
                                 Text(
@@ -310,7 +311,7 @@ fun DashboardScreen(
                             Surface(
                                 shape = RoundedCornerShape(AppleRadius.nestedCard),
                                 color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                shadowElevation = 0.dp,
                                 border = nestedBorder
                             ) {
                                 Row(
@@ -481,19 +482,21 @@ fun DashboardScreen(
                                             center = center,
                                             style = androidx.compose.ui.graphics.drawscope.Stroke(strokeW)
                                         )
-                                        val progressFraction = attendance.weeklyGoalProgress.coerceIn(0.15f, 1f)
-                                        drawArc(
-                                            color = AppleOverloadOrange,
-                                            startAngle = -90f,
-                                            sweepAngle = progressFraction * 360f,
-                                            useCenter = false,
-                                            topLeft = androidx.compose.ui.geometry.Offset(center.x - r, center.y - r),
-                                            size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
-                                            style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                                strokeW,
-                                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                        val progressFraction = attendance.weeklyGoalProgress.coerceIn(0f, 1f)
+                                        if (progressFraction > 0f) {
+                                            drawArc(
+                                                color = AppleOverloadOrange,
+                                                startAngle = -90f,
+                                                sweepAngle = progressFraction * 360f,
+                                                useCenter = false,
+                                                topLeft = androidx.compose.ui.geometry.Offset(center.x - r, center.y - r),
+                                                size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                    strokeW,
+                                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                                )
                                             )
-                                        )
+                                        }
                                     }
 
                                     Box(
@@ -1040,7 +1043,7 @@ fun EqualHeightMetricMiniBox(
         modifier = modifier,
         shape = RoundedCornerShape(AppleRadius.nestedCard),
         color = containerBg,
-        shadowElevation = if (isDark) 0.dp else 1.dp,
+        shadowElevation = 0.dp,
         border = containerBorder
     ) {
         Column(
@@ -1109,7 +1112,7 @@ private fun PersonalRecordsCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(AppleRadius.nestedCard),
                         color = nestedBg,
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         border = nestedBorder
                     ) {
                         Row(
@@ -1159,7 +1162,7 @@ private fun PersonalRecordsCard(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(AppleRadius.nestedCard),
                         color = nestedBg,
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         border = nestedBorder
                     ) {
                         Row(
@@ -1237,7 +1240,7 @@ private fun RecentWorkoutHistorySection(
                 Surface(
                     shape = RoundedCornerShape(AppleRadius.nestedCard),
                     color = nestedBg,
-                    shadowElevation = if (isDark) 0.dp else 1.dp,
+                    shadowElevation = 0.dp,
                     border = nestedBorder
                 ) {
                     Column(
@@ -1265,7 +1268,7 @@ private fun RecentWorkoutHistorySection(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(AppleRadius.nestedCard),
                         color = nestedBg,
-                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        shadowElevation = 0.dp,
                         border = nestedBorder
                     ) {
                         Row(

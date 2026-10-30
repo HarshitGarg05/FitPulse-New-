@@ -1,6 +1,10 @@
 package com.example
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -11,9 +15,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -51,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -73,6 +81,7 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AppDestination
 import com.example.ui.viewmodel.FitnessViewModel
 import com.example.util.OriginIslandLiveManager
+import com.example.util.rememberReducedMotionEnabled
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -153,6 +162,8 @@ fun FitPulseApp(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val saveableStateHolder = rememberSaveableStateHolder()
+    val reducedMotion = rememberReducedMotionEnabled()
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -175,13 +186,39 @@ fun FitPulseApp(
         onDispose { }
     }
 
-    // Track foreground vs minimized state so iQOO/vivo Origin Island only triggers when the app is minimized
-    DisposableEffect(lifecycleOwner) {
+    // Listen for system timezone, time, and date changes (including Monday 00:00:00 rollover)
+    DisposableEffect(context, viewModel) {
+        val timeAndZoneReceiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                viewModel.refreshTimeAndZone()
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+        }
+        runCatching {
+            ContextCompat.registerReceiver(
+                context,
+                timeAndZoneReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        }
+        onDispose {
+            runCatching { context.unregisterReceiver(timeAndZoneReceiver) }
+        }
+    }
+
+    // Track foreground vs minimized state and refresh weekly boundaries on resume
+    DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> {
                     OriginIslandLiveManager.isAppMinimized = false
                     OriginIslandLiveManager.cancelOriginIsland(context)
+                    viewModel.refreshTimeAndZone()
                 }
                 Lifecycle.Event.ON_STOP -> {
                     OriginIslandLiveManager.isAppMinimized = true
@@ -324,38 +361,54 @@ fun FitPulseApp(
                     .background(rootBgColor)
                     .padding(innerPadding)
             ) {
-                // Content scrolls freely all the way to the bottom underneath the floating navbar
+                // Content scrolls freely all the way to the bottom underneath the floating navbar,
+                // preserving scroll state per destination tab via SaveableStateProvider.
                 AnimatedContent(
                     targetState = state.currentTab,
                     modifier = Modifier
                         .fillMaxSize()
                         .background(rootBgColor),
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                        if (reducedMotion) {
+                            fadeIn(animationSpec = tween(80)) togetherWith fadeOut(animationSpec = tween(80))
+                        } else {
+                            val forward = targetState.ordinal >= initialState.ordinal
+                            val slideOffset = { fullWidth: Int -> (fullWidth * 0.045f).toInt() }
+                            (slideInHorizontally(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                initialOffsetX = { if (forward) slideOffset(it) else -slideOffset(it) }
+                            ) + fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))) togetherWith
+                                (slideOutHorizontally(
+                                    animationSpec = tween(180, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { if (forward) -slideOffset(it) else slideOffset(it) }
+                                ) + fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)))
+                        }
                     },
                     label = "mainTabTransition"
                 ) { tab ->
-                    when (tab) {
-                        AppDestination.SUMMARY -> DashboardScreen(
-                            state = state,
-                            viewModel = viewModel
-                        )
-                        AppDestination.ATTENDANCE -> AttendanceScreen(
-                            state = state,
-                            viewModel = viewModel
-                        )
-                        AppDestination.WORKOUTS -> WorkoutLoggerScreen(
-                            state = state,
-                            viewModel = viewModel
-                        )
-                        AppDestination.EXERCISES -> GoalsAndRecoveryScreen(
-                            state = state,
-                            viewModel = viewModel
-                        )
-                        AppDestination.SETTINGS -> ProfileAndPrivacyScreen(
-                            state = state,
-                            viewModel = viewModel
-                        )
+                    saveableStateHolder.SaveableStateProvider(key = tab.name) {
+                        when (tab) {
+                            AppDestination.SUMMARY -> DashboardScreen(
+                                state = state,
+                                viewModel = viewModel
+                            )
+                            AppDestination.ATTENDANCE -> AttendanceScreen(
+                                state = state,
+                                viewModel = viewModel
+                            )
+                            AppDestination.WORKOUTS -> WorkoutLoggerScreen(
+                                state = state,
+                                viewModel = viewModel
+                            )
+                            AppDestination.EXERCISES -> GoalsAndRecoveryScreen(
+                                state = state,
+                                viewModel = viewModel
+                            )
+                            AppDestination.SETTINGS -> ProfileAndPrivacyScreen(
+                                state = state,
+                                viewModel = viewModel
+                            )
+                        }
                     }
                 }
 
