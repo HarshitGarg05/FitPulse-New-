@@ -83,11 +83,22 @@ import com.example.ui.components.AppleSegmentedControl
 import com.example.ui.components.LiquidGlassCard
 import com.example.ui.components.LiquidGlassPrimaryButton
 import com.example.ui.components.LiquidGlassSecondaryButton
+import androidx.compose.ui.graphics.luminance
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
+import com.example.ui.theme.AppleRadius
 import com.example.ui.theme.AppleExerciseGreen
 import com.example.ui.theme.AppleMindPurple
 import com.example.ui.theme.AppleMoveRed
 import com.example.ui.theme.AppleOverloadOrange
 import com.example.ui.theme.AppleStandBlue
+import com.example.ui.theme.AppleStateError
+import com.example.ui.theme.AppleStateSuccess
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.theme.ThemeMode
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
@@ -176,16 +187,22 @@ fun ProfileAndPrivacyScreen(
         profile.weightKg / (hMeters * hMeters)
     }
 
+    val isDarkRoot = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val rootCanvasBg = if (isDarkRoot) Color(0xFF000000) else Color(0xFFF2F2F7)
+
+    // LEVEL 1: Main screen background (#F2F2F7 in Light Mode)
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(rootCanvasBg)
             .testTag("settings_screen"),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 720.dp),
+                .widthIn(max = 720.dp)
+                .background(rootCanvasBg),
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
@@ -194,7 +211,7 @@ fun ProfileAndPrivacyScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
+            item(key = "settings_header", contentType = "header") {
                 AppleLargePageHeader(
                     overlineText = "TRAINING PREFERENCES, BACKUP & PDF EXPORT",
                     title = "Settings",
@@ -206,8 +223,7 @@ fun ProfileAndPrivacyScreen(
                     trailingBadge = {
                         Surface(
                             shape = RoundedCornerShape(999.dp),
-                            color = AppleExerciseGreen.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, AppleExerciseGreen.copy(alpha = 0.40f))
+                            color = AppleStateSuccess.copy(alpha = 0.14f)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -218,13 +234,13 @@ fun ProfileAndPrivacyScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(AppleExerciseGreen)
+                                        .background(AppleStateSuccess)
                                 )
                                 Text(
                                     text = "100% On-Device",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleExerciseGreen,
+                                    color = AppleStateSuccess,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -235,7 +251,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 1. Gym & Progressive Overload Engine Settings
-            item {
+            item(key = "settings_automation_card", contentType = "settings_card") {
                 LiquidGlassCard(accentTint = AppleExerciseGreen) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
@@ -287,7 +303,8 @@ fun ProfileAndPrivacyScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
                             AppleDropdownField(
                                 label = "Default Rest Timer",
@@ -365,7 +382,10 @@ fun ProfileAndPrivacyScreen(
                             }
                         )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -399,9 +419,14 @@ fun ProfileAndPrivacyScreen(
                                         autoStartRestTimer = enabled
                                     )
                                 },
-                                colors = SwitchDefaults.colors(checkedTrackColor = AppleExerciseGreen)
+                                colors = SwitchDefaults.colors(checkedTrackColor = AppleStateSuccess)
                             )
                         }
+
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -435,7 +460,7 @@ fun ProfileAndPrivacyScreen(
                                         autoCheckInOnWorkoutComplete = enabled
                                     )
                                 },
-                                colors = SwitchDefaults.colors(checkedTrackColor = AppleExerciseGreen)
+                                colors = SwitchDefaults.colors(checkedTrackColor = AppleStateSuccess)
                             )
                         }
                     }
@@ -443,7 +468,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 2. Interactive Barbell Plate Loader Calculator Card
-            item {
+            item(key = "settings_plate_calculator_card", contentType = "calculator_card") {
                 BarbellPlateCalculatorCard(
                     barbellWeightKg = profile.barbellWeightKg,
                     unitLabel = state.unitLabel,
@@ -453,7 +478,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 3. Appearance & Apple Liquid Glass Theme Mode
-            item {
+            item(key = "settings_theme_card", contentType = "theme_card") {
                 LiquidGlassCard(accentTint = AppleStandBlue) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
@@ -485,7 +510,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 4. Formatted & Designed PDF Fitness Report Card (Fixes vertical green bar & button clipping!)
-            item {
+            item(key = "settings_pdf_report_card", contentType = "pdf_card") {
                 LiquidGlassCard(
                     accentTint = AppleMoveRed,
                     modifier = Modifier.testTag("pdf_export_card")
@@ -524,9 +549,7 @@ fun ProfileAndPrivacyScreen(
 
                         // Equal-height single-line buttons that never wrap or clip
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             LiquidGlassPrimaryButton(
@@ -537,7 +560,7 @@ fun ProfileAndPrivacyScreen(
                                 enabled = !state.isGeneratingPdf,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight(),
+                                    .height(46.dp),
                                 testTag = "generate_pdf_report_button"
                             )
 
@@ -550,7 +573,7 @@ fun ProfileAndPrivacyScreen(
                                     accentColor = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .height(46.dp),
                                     testTag = "save_pdf_to_device_button"
                                 )
                             }
@@ -575,11 +598,16 @@ fun ProfileAndPrivacyScreen(
 
                         val report = state.generatedPdfReport
                         if (report != null) {
-                            // Fixed layout: Filename column uses Modifier.weight(1f) and single-line ellipsis
-                            // so the green "Ready" badge is NEVER squashed into a vertical bar!
+                            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                            // Level-3 Nested Surface for PDF Report metadata
                             Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                border = BorderStroke(
+                                    width = if (isDark) 0.5.dp else 1.dp,
+                                    color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                                )
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -613,8 +641,7 @@ fun ProfileAndPrivacyScreen(
 
                                     Surface(
                                         shape = RoundedCornerShape(999.dp),
-                                        color = AppleExerciseGreen.copy(alpha = 0.16f),
-                                        border = BorderStroke(1.dp, AppleExerciseGreen.copy(alpha = 0.45f))
+                                        color = AppleStateSuccess.copy(alpha = 0.14f)
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -624,14 +651,14 @@ fun ProfileAndPrivacyScreen(
                                             Icon(
                                                 imageVector = Icons.Default.CheckCircle,
                                                 contentDescription = null,
-                                                tint = AppleExerciseGreen,
+                                                tint = AppleStateSuccess,
                                                 modifier = Modifier.size(13.dp)
                                             )
                                             Text(
                                                 text = "Ready",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                color = AppleExerciseGreen,
+                                                color = AppleStateSuccess,
                                                 maxLines = 1,
                                                 softWrap = false
                                             )
@@ -681,7 +708,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 5. Athlete Profile, Body Composition & Weekly Targets Card
-            item {
+            item(key = "settings_athlete_profile_card", contentType = "profile_card") {
                 LiquidGlassCard(accentTint = AppleMindPurple) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
@@ -728,7 +755,8 @@ fun ProfileAndPrivacyScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
                             AppleLiquidGlassTextField(
                                 value = weightInput,
@@ -750,7 +778,8 @@ fun ProfileAndPrivacyScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
                             AppleDropdownField(
                                 label = "Experience Level",
@@ -804,7 +833,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 6. Full App Data Backup & Restore (Export .json, Import .json, Auto-Snapshots & Clipboard)
-            item {
+            item(key = "settings_backup_restore_card", contentType = "backup_card") {
                 LiquidGlassCard(
                     accentTint = AppleStandBlue,
                     modifier = Modifier.testTag("data_backup_restore_card")
@@ -861,9 +890,7 @@ fun ProfileAndPrivacyScreen(
 
                         // Export JSON & Export PDF Backup Row
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             LiquidGlassPrimaryButton(
@@ -875,7 +902,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleStandBlue,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight(),
+                                    .height(46.dp),
                                 testTag = "export_backup_json_button"
                             )
 
@@ -888,16 +915,14 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleMoveRed,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight(),
+                                    .height(46.dp),
                                 testTag = "export_backup_pdf_button"
                             )
                         }
 
                         // Import (.json or .pdf), Save Snapshot & Copy/Paste JSON Row
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             LiquidGlassSecondaryButton(
@@ -911,7 +936,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleExerciseGreen,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight(),
+                                    .height(46.dp),
                                 testTag = "import_backup_json_button"
                             )
 
@@ -922,7 +947,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleMindPurple,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight(),
+                                    .height(46.dp),
                                 testTag = "create_manual_snapshot_button"
                             )
                         }
@@ -942,17 +967,26 @@ fun ProfileAndPrivacyScreen(
                         )
 
                         if (state.localBackupSnapshots.isNotEmpty()) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                            HorizontalDivider(
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
                             Text(
                                 text = "SAVED ON-DEVICE BACKUP SNAPSHOTS (${state.localBackupSnapshots.size})",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = AppleStandBlue
+                                color = AppleSystemBlue
                             )
                             state.localBackupSnapshots.take(4).forEach { snap ->
+                                val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
                                 Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                                    shape = RoundedCornerShape(AppleRadius.nestedCard),
+                                    color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                    shadowElevation = if (isDark) 0.dp else 1.dp,
+                                    border = BorderStroke(
+                                        width = if (isDark) 0.5.dp else 1.dp,
+                                        color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                                    )
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -991,7 +1025,7 @@ fun ProfileAndPrivacyScreen(
                                                 )
                                             },
                                             icon = Icons.Default.Restore,
-                                            accentColor = AppleStandBlue
+                                            accentColor = AppleSystemBlue
                                         )
                                     }
                                 }
@@ -1002,7 +1036,7 @@ fun ProfileAndPrivacyScreen(
             }
 
             // 7. Local Storage Status & Reset Management
-            item {
+            item(key = "settings_storage_reset_card", contentType = "storage_card") {
                 LiquidGlassCard(accentTint = AppleOverloadOrange) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
@@ -1032,7 +1066,7 @@ fun ProfileAndPrivacyScreen(
                             text = "Reset All Recorded Workouts & Attendance",
                             onClick = { showClearConfirmation = true },
                             icon = Icons.Default.DeleteForever,
-                            accentColor = MaterialTheme.colorScheme.error,
+                            accentColor = AppleStateError,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -1044,6 +1078,8 @@ fun ProfileAndPrivacyScreen(
     if (showJsonBackupModal) {
         AlertDialog(
             onDismissRequest = { showJsonBackupModal = false },
+            shape = RoundedCornerShape(AppleRadius.bottomSheet),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
                     text = "Backup & Restore JSON Data",
@@ -1064,7 +1100,7 @@ fun ProfileAndPrivacyScreen(
                             clipboardManager.setText(AnnotatedString(jsonBackupText))
                         },
                         icon = Icons.Default.ContentCopy,
-                        accentColor = AppleStandBlue,
+                        accentColor = AppleSystemBlue,
                         modifier = Modifier.fillMaxWidth()
                     )
                     AppleLiquidGlassTextField(
@@ -1073,7 +1109,7 @@ fun ProfileAndPrivacyScreen(
                         label = "FitPulse Backup JSON",
                         singleLine = false,
                         maxLines = 8,
-                        accentColor = AppleStandBlue,
+                        accentColor = AppleSystemBlue,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(190.dp)
@@ -1092,7 +1128,7 @@ fun ProfileAndPrivacyScreen(
                         showJsonBackupModal = false
                     },
                     icon = Icons.Default.Restore,
-                    accentColor = AppleExerciseGreen,
+                    accentColor = AppleStateSuccess,
                     testTag = "confirm_restore_json_button"
                 )
             },
@@ -1107,6 +1143,8 @@ fun ProfileAndPrivacyScreen(
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
+            shape = RoundedCornerShape(AppleRadius.bottomSheet),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Clear All Recorded Gym Data?") },
             text = {
                 Text("This clears recorded gym attendance check-ins, saved plans, and workout sessions. An automatic backup snapshot will be saved first so you can restore anytime.")
@@ -1118,7 +1156,7 @@ fun ProfileAndPrivacyScreen(
                         viewModel.clearAllLocalData()
                         showClearConfirmation = false
                     },
-                    accentColor = MaterialTheme.colorScheme.error
+                    accentColor = AppleStateError
                 )
             },
             dismissButton = {
@@ -1202,9 +1240,8 @@ private fun BarbellPlateCalculatorCard(
                 )
 
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = AppleOverloadOrange.copy(alpha = 0.14f),
-                    border = BorderStroke(1.dp, AppleOverloadOrange.copy(alpha = 0.35f))
+                    shape = RoundedCornerShape(AppleRadius.inputField),
+                    color = AppleOverloadOrange.copy(alpha = 0.14f)
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -1253,9 +1290,8 @@ private fun BarbellPlateCalculatorCard(
                         }
                         val pLabel = if (plate % 1f == 0f) plate.toInt().toString() else plate.toString()
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = plateColor.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, plateColor.copy(alpha = 0.45f))
+                            shape = RoundedCornerShape(AppleRadius.smallControl),
+                            color = plateColor.copy(alpha = 0.14f)
                         ) {
                             Text(
                                 text = "$pLabel $unitLabel",

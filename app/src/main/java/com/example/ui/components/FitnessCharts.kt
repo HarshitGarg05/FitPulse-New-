@@ -58,13 +58,41 @@ import com.example.data.repository.DailyChartPoint
 import com.example.data.repository.DraftSetEntry
 import com.example.data.repository.ExerciseSessionSummary
 import com.example.data.repository.MuscleGroupStat
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.HorizontalDivider
+import com.example.ui.theme.AppleCalories
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
+import com.example.ui.theme.AppleExercise
 import com.example.ui.theme.AppleExerciseGreen
 import com.example.ui.theme.AppleGoldYellow
 import com.example.ui.theme.AppleMindPurple
+import com.example.ui.theme.AppleMobility
+import com.example.ui.theme.AppleMove
 import com.example.ui.theme.AppleMoveRed
+import com.example.ui.theme.AppleMuscleGroups
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
 import com.example.ui.theme.AppleOverloadOrange
+import com.example.ui.theme.ApplePersonalRecords
+import com.example.ui.theme.AppleRadius
+import com.example.ui.theme.AppleSeparatorDark
+import com.example.ui.theme.AppleSeparatorLight
+import com.example.ui.theme.AppleStand
 import com.example.ui.theme.AppleStandBlue
 import com.example.ui.theme.AppleStandCyan
+import com.example.ui.theme.AppleStrengthProgression
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSurfaceTertiaryDark
+import com.example.ui.theme.AppleSurfaceTertiaryLight
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleTextInverseLight
+import com.example.ui.theme.AppleTextPrimaryDark
+import com.example.ui.theme.AppleTextPrimaryLight
+import com.example.ui.theme.AppleTextSecondaryDark
+import com.example.ui.theme.AppleTextSecondaryLight
+import com.example.ui.theme.AppleTypeScale
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -80,8 +108,8 @@ import kotlin.math.sin
 fun AppleActivityRingsCardContent(
     attendanceDaysThisWeek: Int,
     attendanceWeeklyGoal: Int,
-    completedSetsThisWeek: Int,
-    weeklySetsTarget: Int = 15,
+    exerciseMinutesThisWeek: Int,
+    weeklyMinutesTarget: Int = 240,
     currentStreakDays: Int,
     weeklyVolumeKg: Float = 0f,
     weeklyVolumeTargetKg: Float = 4000f,
@@ -89,7 +117,7 @@ fun AppleActivityRingsCardContent(
     modifier: Modifier = Modifier
 ) {
     val moveProgressTarget = (attendanceDaysThisWeek.toFloat() / attendanceWeeklyGoal.coerceAtLeast(1)).coerceIn(0f, 1f)
-    val exerciseProgressTarget = (completedSetsThisWeek.toFloat() / weeklySetsTarget.coerceAtLeast(1)).coerceIn(0f, 1f)
+    val exerciseProgressTarget = (exerciseMinutesThisWeek.toFloat() / weeklyMinutesTarget.coerceAtLeast(1)).coerceIn(0f, 1f)
     val standProgressTarget = (currentStreakDays.toFloat() / attendanceWeeklyGoal.coerceAtLeast(1).coerceAtLeast(7)).coerceIn(0f, 1f)
 
     val moveAnim by animateFloatAsState(
@@ -217,14 +245,13 @@ fun AppleActivityRingsCardContent(
                 )
 
                 // Apple directional indicator arrows at 12 o'clock (Move →, Exercise », Stand ↑)
-                val arrowMarkerColor = Color.Black.copy(alpha = 0.75f)
+                val arrowMarkerColor = if (isDark) AppleTextPrimaryLight.copy(alpha = 0.78f) else AppleTextInverseLight.copy(alpha = 0.92f)
                 fun drawAppleArrowMarker(radius: Float, type: Int) {
                     val mx = center.x
                     val my = center.y - radius
                     val arrowSize = strokeWidth * 0.36f
                     when (type) {
                         0 -> {
-                            // Move: right arrow →
                             val path = Path().apply {
                                 moveTo(mx - arrowSize, my)
                                 lineTo(mx + arrowSize * 0.8f, my)
@@ -239,7 +266,6 @@ fun AppleActivityRingsCardContent(
                             )
                         }
                         1 -> {
-                            // Exercise: double chevron »
                             val path = Path().apply {
                                 moveTo(mx - arrowSize * 0.6f, my - arrowSize * 0.6f)
                                 lineTo(mx - arrowSize * 0.05f, my)
@@ -255,7 +281,6 @@ fun AppleActivityRingsCardContent(
                             )
                         }
                         2 -> {
-                            // Stand: up arrow ↑
                             val path = Path().apply {
                                 moveTo(mx, my + arrowSize)
                                 lineTo(mx, my - arrowSize * 0.8f)
@@ -278,56 +303,74 @@ fun AppleActivityRingsCardContent(
             }
         }
 
-        // Exact Apple Fitness Right-Hand Stacked Legend
+        // Clean Apple Fitness Right-Hand Stacked Legend directly on the #FFFFFF card surface
+        val separatorColor = if (isDark) AppleSeparatorDark else AppleSeparatorLight
+
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(start = 18.dp, top = 4.dp, bottom = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Move Row
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = "Move",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AppleTypeScale.Subheadline,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "$attendanceDaysThisWeek/$attendanceWeeklyGoal DAYS",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = AppleTypeScale.SmallMetric,
                     fontWeight = FontWeight.Bold,
-                    color = AppleMoveRed
+                    color = AppleMove
                 )
             }
 
+            HorizontalDivider(thickness = 0.5.dp, color = separatorColor)
+
             // Exercise Row
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = "Exercise",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AppleTypeScale.Subheadline,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "$completedSetsThisWeek/$weeklySetsTarget SETS",
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = "$exerciseMinutesThisWeek/$weeklyMinutesTarget MINS",
+                    style = AppleTypeScale.SmallMetric,
                     fontWeight = FontWeight.Bold,
                     color = exerciseTextColor
                 )
             }
 
+            HorizontalDivider(thickness = 0.5.dp, color = separatorColor)
+
             // Stand Row
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = "Stand",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AppleTypeScale.Subheadline,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "$currentStreakDays/${attendanceWeeklyGoal.coerceAtLeast(7)} DAYS",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = AppleTypeScale.SmallMetric,
                     fontWeight = FontWeight.Bold,
                     color = standTextColor
                 )
@@ -421,13 +464,19 @@ fun AppleHealthBarChart(
     val maxVal = (points.maxOfOrNull { it.value } ?: 1f).coerceAtLeast(1f)
     val allZero = points.all { it.value <= 0f }
 
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val headerSurface = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val nestedBorder = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-            shape = RoundedCornerShape(12.dp)
+            color = headerSurface,
+            shape = RoundedCornerShape(AppleRadius.nestedCard),
+            shadowElevation = if (isDark) 0.dp else 1.dp,
+            border = BorderStroke(1.dp, nestedBorder)
         ) {
             Row(
                 modifier = Modifier
@@ -438,7 +487,7 @@ fun AppleHealthBarChart(
             ) {
                 Text(
                     text = "${selectedPoint.shortDayLabel} • ${selectedPoint.fullDateLabel}",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = AppleTypeScale.Footnote,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 val formattedVal = if (selectedPoint.value % 1f == 0f) {
@@ -448,7 +497,7 @@ fun AppleHealthBarChart(
                 }
                 Text(
                     text = "$formattedVal $unitSuffix".trim(),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = AppleTypeScale.SmallMetric,
                     fontWeight = FontWeight.Bold,
                     color = barColor
                 )
@@ -458,13 +507,14 @@ fun AppleHealthBarChart(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp)
                 .height(124.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {
             points.forEachIndexed { idx, pt ->
                 val isSelected = idx == safeIdx
-                val targetFraction = if (pt.value <= 0f) 0.10f else (pt.value / maxVal).coerceIn(0.14f, 1f)
+                val targetFraction = if (pt.value <= 0f) 0.08f else (pt.value / maxVal).coerceIn(0.14f, 1f)
                 val animatedFraction by animateFloatAsState(
                     targetValue = targetFraction,
                     animationSpec = spring(
@@ -473,6 +523,8 @@ fun AppleHealthBarChart(
                     ),
                     label = "barAnim_$idx"
                 )
+
+                val emptyTrackColor = if (isDark) AppleSurfaceTertiaryDark else AppleSurfaceTertiaryLight
 
                 Column(
                     modifier = Modifier
@@ -490,23 +542,14 @@ fun AppleHealthBarChart(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.62f)
+                                .fillMaxWidth(0.58f)
                                 .fillMaxSize(animatedFraction)
-                                .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp, bottomStart = 4.dp, bottomEnd = 4.dp))
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 4.dp, bottomEnd = 4.dp))
                                 .background(
-                                    brush = when {
-                                        pt.value <= 0f -> Brush.verticalGradient(
-                                            listOf(
-                                                barColor.copy(alpha = if (isSelected) 0.35f else 0.18f),
-                                                barColor.copy(alpha = 0.08f)
-                                            )
-                                        )
-                                        isSelected -> Brush.verticalGradient(
-                                            listOf(barColor, barColor.copy(alpha = 0.72f))
-                                        )
-                                        else -> Brush.verticalGradient(
-                                            listOf(barColor.copy(alpha = 0.65f), barColor.copy(alpha = 0.35f))
-                                        )
+                                    color = when {
+                                        pt.value <= 0f -> emptyTrackColor
+                                        isSelected -> barColor
+                                        else -> barColor.copy(alpha = 0.62f)
                                     }
                                 )
                         )
@@ -514,7 +557,7 @@ fun AppleHealthBarChart(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = pt.shortDayLabel,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = AppleTypeScale.Caption2,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -638,15 +681,20 @@ fun ExerciseProgressionChart(
     val minVal = (values.minOrNull() ?: 0f)
     val maxVal = (values.maxOrNull() ?: 1f)
     val valueSpan = (maxVal - minVal).coerceAtLeast(1f)
-    val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val gridColor = if (isDark) AppleSeparatorDark else AppleSeparatorLight
+    val headerSurface = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val nestedBorder = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-            shape = RoundedCornerShape(12.dp)
+            color = headerSurface,
+            shape = RoundedCornerShape(AppleRadius.nestedCard),
+            shadowElevation = if (isDark) 0.dp else 1.dp,
+            border = BorderStroke(1.dp, nestedBorder)
         ) {
             Row(
                 modifier = Modifier
@@ -662,7 +710,7 @@ fun ExerciseProgressionChart(
                         } else {
                             "${selectedSession.dateLabel} • ${selectedSession.sessionTitle}"
                         },
-                        style = MaterialTheme.typography.labelMedium,
+                        style = AppleTypeScale.Footnote,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -674,7 +722,7 @@ fun ExerciseProgressionChart(
                         } else {
                             "${selectedSession.completedSetCount} sets • ${selectedSession.totalReps} total reps"
                         },
-                        style = MaterialTheme.typography.labelSmall,
+                        style = AppleTypeScale.Caption1,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -682,7 +730,7 @@ fun ExerciseProgressionChart(
                 }
                 Text(
                     text = "${selectedValue.roundToInt()} $suffix",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = AppleTypeScale.SmallMetric,
                     fontWeight = FontWeight.Bold,
                     color = accentColor
                 )
@@ -693,7 +741,7 @@ fun ExerciseProgressionChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(145.dp)
-                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .padding(horizontal = 8.dp, vertical = 12.dp)
         ) {
             val w = size.width
             val h = size.height
@@ -704,7 +752,7 @@ fun ExerciseProgressionChart(
                     color = gridColor,
                     start = Offset(0f, y),
                     end = Offset(w, y),
-                    strokeWidth = 1.dp.toPx()
+                    strokeWidth = 0.6.dp.toPx()
                 )
             }
 
@@ -986,11 +1034,22 @@ fun MuscleVolumeDistributionGraph(
         )
     }
 
-    val palette = listOf(AppleMoveRed, AppleStandBlue, AppleExerciseGreen, AppleOverloadOrange, AppleMindPurple)
+    val palette = listOf(
+        AppleMuscleGroups,
+        AppleStrengthProgression,
+        AppleMove,
+        AppleExercise,
+        AppleStand,
+        AppleMobility
+    )
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val trackBg = if (isDark) AppleSurfaceTertiaryDark else AppleSurfaceTertiaryLight
+    val nestedBg = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val nestedBorder = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         defaultMuscles.take(6).forEachIndexed { idx, mg ->
             val color = palette[idx % palette.size]
@@ -1005,49 +1064,62 @@ fun MuscleVolumeDistributionGraph(
                 label = "muscleDist_$idx"
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            Surface(
+                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                color = nestedBg,
+                shadowElevation = if (isDark) 0.dp else 1.dp,
+                border = BorderStroke(1.dp, nestedBorder)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                            )
+                            Text(
+                                text = mg.muscleGroup,
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "${mg.completedSets} sets (${mg.percentageOfSets.roundToInt()}%) • ${formatVolume(mg.totalVolumeKg)}",
+                            style = AppleTypeScale.Caption1,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(CircleShape)
+                            .background(trackBg)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .fillMaxWidth(animProgress)
+                                .fillMaxHeight()
                                 .clip(CircleShape)
                                 .background(color)
                         )
-                        Text(
-                            text = mg.muscleGroup,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
-                    Text(
-                        text = "${mg.completedSets} sets (${mg.percentageOfSets.roundToInt()}%) • ${formatVolume(mg.totalVolumeKg)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(animProgress)
-                            .fillMaxHeight()
-                            .clip(CircleShape)
-                            .background(Brush.horizontalGradient(listOf(color, color.copy(alpha = 0.65f))))
-                    )
                 }
             }
         }
@@ -1083,11 +1155,16 @@ fun AttendanceCalendarGrid(
             }
         }
 
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        val restDayBg = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+        val restDayBorder = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+        val restDayText = if (isDark) AppleTextPrimaryDark else AppleTextPrimaryLight
+
         val rows = cells.chunked(7)
         rows.forEach { weekRow ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 for (col in 0 until 7) {
                     val cell = weekRow.getOrNull(col)
@@ -1101,14 +1178,16 @@ fun AttendanceCalendarGrid(
                         val isSelected = cell.dateKey == selectedDateKey
                         val isAttended = cell.status == CalendarAttendanceStatus.ATTENDED
                         val bgColor = if (isAttended) {
-                            AppleMoveRed
+                            AppleMove
                         } else {
-                            AppleStandBlue.copy(alpha = 0.16f)
+                            restDayBg
                         }
                         val textColor = if (isAttended) {
-                            Color.White
+                            AppleTextInverseLight
+                        } else if (cell.isToday) {
+                            AppleSystemBlue
                         } else {
-                            AppleStandBlue
+                            restDayText
                         }
 
                         Box(
@@ -1119,11 +1198,11 @@ fun AttendanceCalendarGrid(
                                 .background(bgColor)
                                 .then(
                                     if (isSelected) {
-                                        Modifier.border(2.2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                        Modifier.border(2.dp, AppleSystemBlue, CircleShape)
                                     } else if (cell.isToday && !isAttended) {
-                                        Modifier.border(2.dp, AppleMoveRed, CircleShape)
+                                        Modifier.border(1.5.dp, AppleSystemBlue, CircleShape)
                                     } else if (!isAttended) {
-                                        Modifier.border(1.2.dp, AppleStandBlue.copy(alpha = 0.58f), CircleShape)
+                                        Modifier.border(1.dp, restDayBorder, CircleShape)
                                     } else {
                                         Modifier
                                     }
@@ -1134,15 +1213,15 @@ fun AttendanceCalendarGrid(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = cell.dayOfMonth.toString(),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
+                                    style = AppleTypeScale.Footnote,
+                                    fontWeight = if (isAttended || cell.isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = textColor
                                 )
                                 if (cell.visitCount > 1) {
                                     Text(
                                         text = "×${cell.visitCount}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = textColor.copy(alpha = 0.92f)
+                                        style = AppleTypeScale.Caption2,
+                                        color = textColor.copy(alpha = 0.90f)
                                     )
                                 }
                             }
@@ -1159,8 +1238,8 @@ fun AttendanceCalendarGrid(
             horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CalendarLegendItem(color = AppleMoveRed, label = "Attended")
-            CalendarLegendItem(color = AppleStandBlue, label = "Rest Day", outlined = true)
+            CalendarLegendItem(color = AppleMove, label = "Attended")
+            CalendarLegendItem(color = AppleSystemBlue, label = "Today", outlined = true)
         }
     }
 }

@@ -51,6 +51,9 @@ object OriginIslandLiveManager {
     const val ACTION_ADD_REST_15S = "com.example.action.ORIGIN_ISLAND_ADD_REST_15S"
 
     @Volatile
+    var isAppMinimized: Boolean = false
+
+    @Volatile
     var onToggleTimerCallback: (() -> Unit)? = null
 
     @Volatile
@@ -66,9 +69,9 @@ object OriginIslandLiveManager {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_HIGH
+                    NotificationManager.IMPORTANCE_DEFAULT
                 ).apply {
-                    description = "Real-time Motorola Live Updates & Vivo Origin Island dynamic punch-hole tracking for workouts and rest timers"
+                    description = "Real-time Vivo / iQOO Origin Island dynamic punch-hole tracking when the app is minimized"
                     setShowBadge(true)
                     enableVibration(false)
                     setSound(null, null)
@@ -91,8 +94,8 @@ object OriginIslandLiveManager {
     }
 
     /**
-     * Synchronizes the current workout & rest timer state with Vivo/iQOO OriginOS 6 Origin Island
-     * and Android's Promoted Ongoing Notification system.
+     * Synchronizes the current workout & rest timer state with Vivo/iQOO OriginOS Origin Island
+     * ONLY when the application is minimized/backgrounded.
      */
     fun syncOriginIslandState(
         context: Context,
@@ -100,6 +103,11 @@ object OriginIslandLiveManager {
         unitLabel: String,
         useLbs: Boolean
     ) {
+        if (!isAppMinimized) {
+            cancelOriginIsland(context)
+            return
+        }
+
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
         val shouldShowOnOriginIsland = activeWorkout.isWorkoutActive ||

@@ -50,7 +50,7 @@ class FitnessRepository(
     private val dao: FitnessDao
 ) {
     companion object {
-        private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        private val KEY_THEME_MODE = stringPreferencesKey("apple_fitness_light_card_theme_mode")
     }
 
     val themeModeFlow: Flow<ThemeMode> = context.appDataStore.data.map { prefs ->

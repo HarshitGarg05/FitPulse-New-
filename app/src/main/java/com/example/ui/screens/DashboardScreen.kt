@@ -64,8 +64,10 @@ import com.example.ui.components.AppleActivityRingsCardContent
 import com.example.ui.components.AppleDropdownField
 import com.example.ui.components.AppleHealthBarChart
 import com.example.ui.components.AppleLargePageHeader
+import com.example.ui.components.AppleScreenContainer
 import com.example.ui.components.AppleSectionHeader
 import com.example.ui.components.AppleSegmentedControl
+import com.example.ui.components.AppleStyleMetricCard
 import com.example.ui.components.ExerciseProgressionChart
 import com.example.ui.components.LiquidGlassCard
 import com.example.ui.components.LiquidGlassPrimaryButton
@@ -74,14 +76,35 @@ import com.example.ui.components.MuscleVolumeDistributionGraph
 import com.example.ui.components.ProgressionChartMetric
 import com.example.ui.components.StrengthStandardGaugeBar
 import androidx.compose.ui.graphics.luminance
+import com.example.ui.theme.AppleCalories
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
+import com.example.ui.theme.AppleExercise
 import com.example.ui.theme.AppleExerciseGreen
 import com.example.ui.theme.AppleGoldYellow
 import com.example.ui.theme.AppleMindPurple
+import com.example.ui.theme.AppleMove
 import com.example.ui.theme.AppleMoveRed
+import com.example.ui.theme.AppleMuscleGroups
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
 import com.example.ui.theme.AppleOverloadOrange
+import com.example.ui.theme.ApplePersonalRecords
+import com.example.ui.theme.AppleRadius
+import com.example.ui.theme.AppleSeparatorDark
+import com.example.ui.theme.AppleSeparatorLight
+import com.example.ui.theme.AppleSpacing
+import com.example.ui.theme.AppleStand
 import com.example.ui.theme.AppleStandBlue
 import com.example.ui.theme.AppleStandCyan
 import com.example.ui.theme.AppleStandCyanDarkText
+import com.example.ui.theme.AppleStateSuccess
+import com.example.ui.theme.AppleStrengthProgression
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSurfaceTertiaryLight
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleTypeScale
 import com.example.ui.viewmodel.AppDestination
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
@@ -100,15 +123,19 @@ fun DashboardScreen(
     }
     var selectedProgressionMetric by remember { mutableStateOf(ProgressionChartMetric.TOP_WEIGHT) }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("dashboard_screen"),
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val rootCanvasBg = if (isDark) Color(0xFF000000) else Color(0xFFF2F2F7)
+
+    // LEVEL 1: Main screen background (#F2F2F7 in Light Mode)
+    AppleScreenContainer(
+        modifier = modifier,
+        testTag = "dashboard_screen",
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .background(rootCanvasBg)
                 .widthIn(max = 720.dp),
             contentPadding = PaddingValues(
                 start = 20.dp,
@@ -118,25 +145,20 @@ fun DashboardScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Unified Apple iOS 26 Summary Large Page Header
-            item {
+            // 1. Unified Apple Health Summary Large Page Header
+            item(key = "dashboard_header", contentType = "header") {
                 AppleLargePageHeader(
                     overlineText = todayReadable,
                     title = "Summary",
-                    accentColor = AppleMoveRed,
+                    accentColor = AppleMove,
                     trailingBadge = {
                         Surface(
-                            shape = RoundedCornerShape(999.dp),
+                            shape = RoundedCornerShape(AppleRadius.pill),
                             color = if (attendance.attendedToday) {
-                                AppleExerciseGreen.copy(alpha = 0.18f)
+                                AppleStateSuccess.copy(alpha = 0.14f)
                             } else {
-                                AppleStandBlue.copy(alpha = 0.16f)
-                            },
-                            border = BorderStroke(
-                                1.dp,
-                                if (attendance.attendedToday) AppleExerciseGreen.copy(alpha = 0.45f)
-                                else AppleStandBlue.copy(alpha = 0.40f)
-                            )
+                                AppleSystemBlue.copy(alpha = 0.12f)
+                            }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -148,14 +170,14 @@ fun DashboardScreen(
                                         .size(8.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (attendance.attendedToday) AppleExerciseGreen else AppleStandBlue
+                                            if (attendance.attendedToday) AppleStateSuccess else AppleSystemBlue
                                         )
                                 )
                                 Text(
                                     text = if (attendance.attendedToday) "Checked In Today" else "Ready to Train",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (attendance.attendedToday) AppleExerciseGreen else AppleStandBlue,
+                                    style = AppleTypeScale.Caption1,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (attendance.attendedToday) AppleStateSuccess else AppleSystemBlue,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -165,8 +187,8 @@ fun DashboardScreen(
                 )
             }
 
-            // 2. Today's Overview & Real-Time Apple Activity Rings Card
-            item {
+            // 2A. Today's Activity Summary & Activity Rings Card (Standalone Level-2 White Card)
+            item(key = "dashboard_activity_rings", contentType = "rings_card") {
                 LiquidGlassCard(
                     accentTint = AppleMoveRed,
                     modifier = Modifier.testTag("todays_overview_card")
@@ -177,28 +199,107 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Activity",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "DAILY ACTIVITY RINGS",
+                                    style = AppleTypeScale.Caption1,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleMoveRed
+                                )
+                                Text(
+                                    text = "Activity Summary",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                             com.example.ui.components.AppleCircularAccessory(
                                 onClick = { viewModel.selectTab(AppDestination.ATTENDANCE) },
                                 contentDescription = "View Activity Details"
                             )
                         }
 
+                        val weeklyDateKeys = remember(attendance.weeklyAttendanceSeries) {
+                            attendance.weeklyAttendanceSeries.map { it.dateKey }.toSet()
+                        }
+                        val exerciseMinutesThisWeek = remember(
+                            weeklyDateKeys,
+                            state.allAttendanceRecords,
+                            state.completedSessions,
+                            state.activeWorkout.elapsedSeconds
+                        ) {
+                            val attByDay = state.allAttendanceRecords
+                                .filter { weeklyDateKeys.contains(it.dateKey) }
+                                .groupBy { it.dateKey }
+                            val sessionsByDay = state.completedSessions
+                                .filter { !it.isDraft && weeklyDateKeys.contains(it.dateKey) }
+                                .groupBy { it.dateKey }
+                            val dailyMinutes = weeklyDateKeys.sumOf { dayKey ->
+                                val attMins = attByDay[dayKey]?.sumOf { it.durationMinutes.coerceAtLeast(45) } ?: 0
+                                val sessMins = sessionsByDay[dayKey]?.sumOf { it.durationMinutes.coerceAtLeast(15) } ?: 0
+                                maxOf(attMins, sessMins)
+                            }
+                            dailyMinutes + (state.activeWorkout.elapsedSeconds / 60)
+                        }
+                        val weeklyMinutesTarget = (attendance.weeklyGoalDays * 60).coerceAtLeast(60)
+
                         AppleActivityRingsCardContent(
                             attendanceDaysThisWeek = attendance.weeklyVisitDays,
                             attendanceWeeklyGoal = attendance.weeklyGoalDays,
-                            completedSetsThisWeek = analytics.periodCompletedSets,
-                            weeklySetsTarget = (attendance.weeklyGoalDays * 12).coerceAtLeast(12),
+                            exerciseMinutesThisWeek = exerciseMinutesThisWeek,
+                            weeklyMinutesTarget = weeklyMinutesTarget,
                             currentStreakDays = attendance.currentStreakDays,
                             weeklyVolumeKg = analytics.periodTotalVolumeKg,
                             weeklyVolumeTargetKg = (attendance.weeklyGoalDays * 2500f).coerceAtLeast(3000f),
                             todayVolumeLabel = viewModel.formatVolume(analytics.volumeTodayKg)
                         )
+                    }
+                }
+            }
+
+            // 2B. Check In & Start Workout Quick Actions Card (Standalone Level-2 White Card)
+            item(key = "dashboard_quick_actions", contentType = "actions_card") {
+                val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                val nestedBorder = BorderStroke(
+                    width = if (isDark) 0.5.dp else 1.dp,
+                    color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                )
+                LiquidGlassCard(accentTint = AppleStandBlue) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "QUICK ACTIONS",
+                                    style = AppleTypeScale.Caption1,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleStandBlue
+                                )
+                                Text(
+                                    text = "Check In & Start Workout",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                border = nestedBorder
+                            ) {
+                                Text(
+                                    text = if (attendance.attendedToday) "Checked In" else "Not Checked In",
+                                    style = AppleTypeScale.Caption1,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (attendance.attendedToday) AppleStateSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
 
                         // Live Workout Status Banner (when a workout is active)
                         AnimatedVisibility(
@@ -207,9 +308,10 @@ fun DashboardScreen(
                             exit = fadeOut()
                         ) {
                             Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = AppleStandBlue.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, AppleStandBlue.copy(alpha = 0.35f))
+                                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                border = nestedBorder
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -260,12 +362,10 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Equal-Height Single-Line Action Buttons (NEVER wraps onto 2 lines or clips!)
+                        // Equal-Height Single-Line Action Buttons
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (!attendance.attendedToday) {
@@ -276,7 +376,7 @@ fun DashboardScreen(
                                     accentColor = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .height(46.dp),
                                     testTag = "check_in_today_button"
                                 )
                             } else {
@@ -287,7 +387,7 @@ fun DashboardScreen(
                                     accentColor = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .height(46.dp),
                                     testTag = "open_attendance_button"
                                 )
                             }
@@ -299,7 +399,7 @@ fun DashboardScreen(
                                 accentColor = AppleStandBlue,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight(),
+                                    .height(46.dp),
                                 testTag = "start_workout_dashboard_button"
                             )
                         }
@@ -307,24 +407,21 @@ fun DashboardScreen(
                 }
             }
 
-            // 3. Apple Health Modular 2-Column Cards (Streak & Volume) matching the exact Apple layout
-            item {
-                val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+            // 3. Separate Streak Card & Weekly Volume Card with Visible 16.dp Gap
+            item(key = "dashboard_streak_and_volume", contentType = "dual_metric_row") {
                 val cyanTextColor = if (isDark) com.example.ui.theme.AppleStand else com.example.ui.theme.AppleSystemBlue
                 val cyanBarColor = if (isDark) com.example.ui.theme.AppleStand else com.example.ui.theme.AppleSystemBlue
                 val inactiveBarBg = if (isDark) com.example.ui.theme.AppleSurfaceSecondaryDark else com.example.ui.theme.AppleSurfaceTertiaryLight
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Max),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Left Card: Gym Streak & Attendance (Real FitPulse feature)
+                    // Left Card: Separate Pure White Streak Card
                     LiquidGlassCard(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight(),
+                            .height(172.dp),
                         accentTint = AppleOverloadOrange,
                         onClick = { viewModel.selectTab(AppDestination.ATTENDANCE) }
                     ) {
@@ -361,83 +458,86 @@ fun DashboardScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                            // Circular streak flame badge
-                            val streakBadgeBg = if (isDark) Color(0xFF2C1900) else com.example.ui.theme.AppleCalories.copy(alpha = 0.12f)
-                            val streakTrackColor = if (isDark) Color(0xFF472600) else com.example.ui.theme.AppleCalories.copy(alpha = 0.22f)
-                            Box(
-                                modifier = Modifier.size(54.dp),
-                                contentAlignment = Alignment.Center
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val strokeW = 4.dp.toPx()
-                                    val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
-                                    val r = (size.minDimension / 2f) - (strokeW / 2f)
-                                    drawCircle(
-                                        color = streakTrackColor,
-                                        radius = r,
-                                        center = center,
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(strokeW)
-                                    )
-                                    val progressFraction = attendance.weeklyGoalProgress.coerceIn(0.15f, 1f)
-                                    drawArc(
-                                        color = AppleOverloadOrange,
-                                        startAngle = -90f,
-                                        sweepAngle = progressFraction * 360f,
-                                        useCenter = false,
-                                        topLeft = androidx.compose.ui.geometry.Offset(center.x - r, center.y - r),
-                                        size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                            strokeW,
-                                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                                        )
-                                    )
-                                }
-
+                                val streakBadgeBg = AppleCalories.copy(alpha = if (isDark) 0.18f else 0.12f)
+                                val streakTrackColor = AppleCalories.copy(alpha = if (isDark) 0.28f else 0.20f)
                                 Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(streakBadgeBg),
+                                    modifier = Modifier.size(56.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocalFireDepartment,
-                                        contentDescription = null,
-                                        tint = AppleOverloadOrange,
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                                        val strokeW = 4.5.dp.toPx()
+                                        val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                                        val r = (size.minDimension / 2f) - (strokeW / 2f)
+                                        drawCircle(
+                                            color = streakTrackColor,
+                                            radius = r,
+                                            center = center,
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(strokeW)
+                                        )
+                                        val progressFraction = attendance.weeklyGoalProgress.coerceIn(0.15f, 1f)
+                                        drawArc(
+                                            color = AppleOverloadOrange,
+                                            startAngle = -90f,
+                                            sweepAngle = progressFraction * 360f,
+                                            useCenter = false,
+                                            topLeft = androidx.compose.ui.geometry.Offset(center.x - r, center.y - r),
+                                            size = androidx.compose.ui.geometry.Size(r * 2f, r * 2f),
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                strokeW,
+                                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                            )
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(streakBadgeBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.LocalFireDepartment,
+                                            contentDescription = null,
+                                            tint = AppleOverloadOrange,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
+
+                                Text(
+                                    text = if (attendance.currentStreakDays > 0) "${attendance.currentStreakDays} Day Streak" else "Start Streak",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Text(
+                                    text = "${attendance.weeklyVisitDays}/${attendance.weeklyGoalDays} Days Wk",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleOverloadOrange,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
-
-                            Spacer(modifier = Modifier.height(2.dp))
-
-                            Text(
-                                text = if (attendance.currentStreakDays > 0) "${attendance.currentStreakDays} Day Streak" else "Start Streak",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-
-                            Text(
-                                text = "${attendance.weeklyVisitDays}/${attendance.weeklyGoalDays} Days Wk",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = AppleOverloadOrange,
-                                maxLines = 1,
-                                softWrap = false
-                            )
                         }
                     }
 
-                    // Right Card: Training Volume (Real FitPulse feature)
+                    // Right Card: Separate Pure White Weekly Volume Card
                     LiquidGlassCard(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight(),
+                            .height(172.dp),
                         accentTint = AppleStandCyan,
                         onClick = { viewModel.selectTab(AppDestination.WORKOUTS) }
                     ) {
@@ -473,101 +573,111 @@ fun DashboardScreen(
                                 )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                                Text(
-                                    text = "Weekly Volume",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = viewModel.formatVolume(analytics.periodTotalVolumeKg),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = cyanTextColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            // Dynamic 7-day volume pill bar chart matching Apple Health layout
-                            val last7Days = if (analytics.dailyVolumeSeries.isNotEmpty()) {
-                                analytics.dailyVolumeSeries.takeLast(7)
-                            } else emptyList()
-                            val maxVol = (last7Days.maxOfOrNull { it.value } ?: 1f).coerceAtLeast(1f)
-                            val defaultDays = listOf("M", "T", "W", "T", "F", "S", "S")
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Bottom
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                for (i in 0 until 7) {
-                                    val point = last7Days.getOrNull(i)
-                                    val dayLetter = point?.shortDayLabel?.take(1) ?: defaultDays[i]
-                                    val dayVal = point?.value ?: 0f
-                                    val isFilled = dayVal > 0f
-                                    val fraction = if (isFilled) (dayVal / maxVol).coerceIn(0.2f, 1f) else 0.12f
+                                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                    Text(
+                                        text = "Weekly Volume",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = viewModel.formatVolume(analytics.periodTotalVolumeKg),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = cyanTextColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
 
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Bottom,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(6.dp)
-                                                .height((32f * fraction).coerceAtLeast(4f).dp)
-                                                .clip(RoundedCornerShape(3.dp))
-                                                .background(if (isFilled) cyanBarColor else inactiveBarBg)
-                                        )
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = dayLetter,
-                                            fontSize = 9.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = if (isFilled) FontWeight.Bold else FontWeight.Normal
-                                        )
+                                // Dynamic 7-day volume pill bar chart directly on #FFFFFF card surface
+                                val last7Days = if (analytics.dailyVolumeSeries.isNotEmpty()) {
+                                    analytics.dailyVolumeSeries.takeLast(7)
+                                } else emptyList()
+                                val maxVol = (last7Days.maxOfOrNull { it.value } ?: 1f).coerceAtLeast(1f)
+                                val defaultDays = listOf("M", "T", "W", "T", "F", "S", "S")
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    for (i in 0 until 7) {
+                                        val point = last7Days.getOrNull(i)
+                                        val dayLetter = point?.shortDayLabel?.take(1) ?: defaultDays[i]
+                                        val dayVal = point?.value ?: 0f
+                                        val isFilled = dayVal > 0f
+                                        val fraction = if (isFilled) (dayVal / maxVol).coerceIn(0.2f, 1f) else 0.14f
+
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Bottom,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(6.dp)
+                                                    .height((28f * fraction).coerceAtLeast(4f).dp)
+                                                    .clip(RoundedCornerShape(3.dp))
+                                                    .background(if (isFilled) cyanBarColor else inactiveBarBg)
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = dayLetter,
+                                                fontSize = 9.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = if (isFilled) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
                                     }
                                 }
-                            }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "Today:",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = viewModel.formatVolume(analytics.volumeTodayKg),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = cyanTextColor,
-                                    maxLines = 1
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Today:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = viewModel.formatVolume(analytics.volumeTodayKg),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = cyanTextColor,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // 4. Fitness Statistics Highlights (Equal Height 2x2 Clean Apple Tiles)
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 4. Activity & Strength Highlights (4 Clearly Separated Pure White Metric Cards on #F2F2F7 Canvas)
+            item(key = "dashboard_highlights_grid", contentType = "highlights_grid") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     AppleSectionHeader(
                         title = "Activity & Strength Highlights",
                         subtitle = "Calculated from your saved local records"
                     )
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Max),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         AppleStatTile(
                             label = "GYM ATTENDANCE",
@@ -577,7 +687,7 @@ fun DashboardScreen(
                             accentColor = AppleMoveRed,
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
+                                .height(118.dp)
                         )
                         AppleStatTile(
                             label = "ACTIVE STREAK",
@@ -587,15 +697,13 @@ fun DashboardScreen(
                             accentColor = AppleOverloadOrange,
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
+                                .height(118.dp)
                         )
                     }
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Max),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         AppleStatTile(
                             label = "WORKOUT SESSIONS",
@@ -605,7 +713,7 @@ fun DashboardScreen(
                             accentColor = AppleStandBlue,
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
+                                .height(118.dp)
                         )
                         AppleStatTile(
                             label = "TRAINING VOLUME",
@@ -615,117 +723,143 @@ fun DashboardScreen(
                             accentColor = AppleExerciseGreen,
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
+                                .height(118.dp)
                         )
                     }
                 }
             }
 
-            // 4. Progress Visualization & Measurable Charts Card
-            item {
-                LiquidGlassCard(accentTint = AppleExerciseGreen) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "TRAINING ANALYTICS & VOLUME GRAPHS",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = AppleExerciseGreen
-                            )
-                            Text(
-                                text = "Volume, Sets & Muscle Distribution",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+            // 5A. Training Analytics & Daily Training Volume Card (Standalone Level-2 White Card with Clear Section Separation)
+            item(key = "dashboard_volume_analytics", contentType = "bar_chart_card") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    AppleSectionHeader(
+                        title = "Training Analytics & Volume Graphs",
+                        subtitle = "Daily volume, completed sets, and muscle group distribution"
+                    )
 
-                        AppleSegmentedControl(
-                            items = AnalyticsDateRange.entries,
-                            selectedItem = state.analyticsDateRange,
-                            onItemSelected = { viewModel.setAnalyticsDateRange(it) },
-                            labelProvider = { it.shortLabel },
-                            accentColor = AppleExerciseGreen
-                        )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LiquidGlassCard(accentTint = AppleExerciseGreen) {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Daily Training Volume (${state.unitLabel})",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "TRAINING VOLUME ANALYTICS",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppleExerciseGreen
+                                    )
+                                    Text(
+                                        text = "Daily Training Volume (${state.unitLabel})",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                                 Text(
                                     text = viewModel.formatVolume(analytics.periodTotalVolumeKg),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = AppleExerciseGreen
                                 )
                             }
+
+                            AppleSegmentedControl(
+                                items = AnalyticsDateRange.entries,
+                                selectedItem = state.analyticsDateRange,
+                                onItemSelected = { viewModel.setAnalyticsDateRange(it) },
+                                labelProvider = { it.shortLabel },
+                                accentColor = AppleExerciseGreen
+                            )
+
                             AppleHealthBarChart(
                                 points = analytics.dailyVolumeSeries,
                                 barColor = AppleExerciseGreen,
                                 unitSuffix = state.unitLabel
                             )
                         }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Daily Completed Sets",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "${analytics.periodCompletedSets} sets",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AppleMoveRed
-                                )
-                            }
-                            AppleHealthBarChart(
-                                points = analytics.dailySetsSeries,
-                                barColor = AppleMoveRed,
-                                unitSuffix = "sets"
-                            )
-                        }
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Muscle Group Volume & Set Breakdown",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            MuscleVolumeDistributionGraph(
-                                muscleBreakdown = analytics.muscleGroupBreakdown,
-                                formatVolume = { viewModel.formatVolume(it) }
-                            )
-                        }
                     }
                 }
             }
 
-            // 5. Exercise-Specific Strength Progression Spotlight Card
-            item {
+            // 5B. Daily Completed Sets Card (Standalone Level-2 White Card)
+            item(key = "dashboard_sets_analytics", contentType = "bar_chart_card") {
+                LiquidGlassCard(accentTint = AppleMoveRed) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "SET FREQUENCY",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppleMoveRed
+                                )
+                                Text(
+                                    text = "Daily Completed Sets",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = "${analytics.periodCompletedSets} sets",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleMoveRed
+                            )
+                        }
+
+                        AppleHealthBarChart(
+                            points = analytics.dailySetsSeries,
+                            barColor = AppleMoveRed,
+                            unitSuffix = "sets"
+                        )
+                    }
+                }
+            }
+
+            // 5C. Muscle Group Volume & Set Breakdown Card (Standalone Level-2 White Card)
+            item(key = "dashboard_muscle_distribution", contentType = "muscle_distribution_card") {
+                LiquidGlassCard(accentTint = AppleMuscleGroups) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "MUSCLE DISTRIBUTION",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleMuscleGroups
+                            )
+                            Text(
+                                text = "Muscle Group Volume & Set Breakdown",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        MuscleVolumeDistributionGraph(
+                            muscleBreakdown = analytics.muscleGroupBreakdown,
+                            formatVolume = { viewModel.formatVolume(it) }
+                        )
+                    }
+                }
+            }
+
+            // 6. Exercise-Specific Strength Progression Spotlight Card (Standalone Level-2 White Card)
+            item(key = "dashboard_strength_progression", contentType = "progression_card") {
                 val reports = analytics.overloadReports
                 val activeReport = state.selectedExerciseReport ?: reports.firstOrNull()
 
                 if (activeReport != null) {
-                    LiquidGlassCard(accentTint = AppleStandBlue) {
+                    LiquidGlassCard(accentTint = AppleStrengthProgression) {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -734,14 +868,14 @@ fun DashboardScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = "PROGRESSIVE OVERLOAD ANALYTICS",
-                                        style = MaterialTheme.typography.labelSmall,
+                                        text = "STRENGTH PROGRESSION",
+                                        style = AppleTypeScale.Caption1,
                                         fontWeight = FontWeight.Bold,
-                                        color = AppleStandBlue
+                                        color = AppleStrengthProgression
                                     )
                                     Text(
                                         text = activeReport.exerciseName,
-                                        style = MaterialTheme.typography.titleMedium,
+                                        style = AppleTypeScale.Title3,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -770,11 +904,9 @@ fun DashboardScreen(
                             val displayVolume = activeReport.personalRecordVolumeKg
                             val display1Rm = activeReport.personalRecordOneRepMaxKg
 
-                            // Equal-height 4-box metric row so Est. 1RM is ALWAYS the exact same height!
+                            // Equal-height 4-box Level-3 metric row (single-pass height for scroll smoothness)
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Max),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 EqualHeightMetricMiniBox(
@@ -783,7 +915,7 @@ fun DashboardScreen(
                                     accent = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight()
+                                        .height(68.dp)
                                 )
                                 EqualHeightMetricMiniBox(
                                     label = "Best Reps",
@@ -791,7 +923,7 @@ fun DashboardScreen(
                                     accent = AppleStandBlue,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight()
+                                        .height(68.dp)
                                 )
                                 EqualHeightMetricMiniBox(
                                     label = "Peak Vol",
@@ -799,7 +931,7 @@ fun DashboardScreen(
                                     accent = AppleExerciseGreen,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight()
+                                        .height(68.dp)
                                 )
                                 EqualHeightMetricMiniBox(
                                     label = "Est. 1RM",
@@ -807,7 +939,7 @@ fun DashboardScreen(
                                     accent = AppleMindPurple,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight()
+                                        .height(68.dp)
                                 )
                             }
 
@@ -816,7 +948,7 @@ fun DashboardScreen(
                                 selectedItem = selectedProgressionMetric,
                                 onItemSelected = { selectedProgressionMetric = it },
                                 labelProvider = { it.shortLabel },
-                                accentColor = AppleStandBlue
+                                accentColor = AppleStrengthProgression
                             )
 
                             ExerciseProgressionChart(
@@ -828,7 +960,7 @@ fun DashboardScreen(
                                 recommendedReps = activeReport.recommendedTargetReps,
                                 recommendedVolumeKg = activeReport.recommendedTargetVolumeKg,
                                 recommended1RmKg = activeReport.recommendedTargetOneRepMaxKg,
-                                accentColor = AppleStandBlue
+                                accentColor = AppleStrengthProgression
                             )
 
                             StrengthStandardGaugeBar(
@@ -843,8 +975,8 @@ fun DashboardScreen(
                 }
             }
 
-            // 6. Recent Personal Records & Strength Improvements
-            item {
+            // 7. Recent Personal Records & Strength Improvements
+            item(key = "dashboard_personal_records", contentType = "pr_card") {
                 PersonalRecordsCard(
                     records = analytics.personalRecords,
                     reports = analytics.overloadReports,
@@ -853,8 +985,8 @@ fun DashboardScreen(
                 )
             }
 
-            // 7. Recent Workout History
-            item {
+            // 8. Recent Workout History
+            item(key = "dashboard_recent_workouts", contentType = "recent_workouts_card") {
                 RecentWorkoutHistorySection(
                     workouts = state.completedSessions.take(5),
                     formatVolume = { viewModel.formatVolume(it) },
@@ -877,64 +1009,19 @@ private fun AppleStatTile(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
-    LiquidGlassCard(
-        modifier = modifier,
-        accentTint = accentColor
-    ) {
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(accentColor.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = primaryValue,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = secondaryValue,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
+    AppleStyleMetricCard(
+        label = label,
+        primaryValue = primaryValue,
+        secondaryValue = secondaryValue,
+        icon = icon,
+        accentColor = accentColor,
+        modifier = modifier
+    )
 }
 
+/**
+ * LEVEL 3 Nested Metric Container (#FAFAFC in Light Mode, 16.dp radius, #EBEBF0 border, 1.dp shadow)
+ */
 @Composable
 fun EqualHeightMetricMiniBox(
     label: String,
@@ -942,24 +1029,32 @@ fun EqualHeightMetricMiniBox(
     accent: Color,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val containerBg = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val containerBorder = BorderStroke(
+        width = if (isDark) 0.5.dp else 1.dp,
+        color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+    )
+
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = accent.copy(alpha = 0.14f),
-        border = BorderStroke(1.3.dp, accent.copy(alpha = 0.45f))
+        shape = RoundedCornerShape(AppleRadius.nestedCard),
+        color = containerBg,
+        shadowElevation = if (isDark) 0.dp else 1.dp,
+        border = containerBorder
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
+                style = AppleTypeScale.Caption1,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Ellipsis
@@ -967,7 +1062,7 @@ fun EqualHeightMetricMiniBox(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleSmall,
+                style = AppleTypeScale.SmallMetric,
                 fontWeight = FontWeight.Bold,
                 color = accent,
                 maxLines = 1,
@@ -985,10 +1080,18 @@ private fun PersonalRecordsCard(
     formatWeight: (Float) -> String,
     onNavigateToExercises: () -> Unit
 ) {
-    LiquidGlassCard(accentTint = AppleOverloadOrange) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val nestedBg = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val nestedBorder = BorderStroke(
+        width = if (isDark) 0.5.dp else 1.dp,
+        color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+    )
+    val prTextColor = if (isDark) ApplePersonalRecords else AppleCalories
+
+    LiquidGlassCard(accentTint = ApplePersonalRecords) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             AppleSectionHeader(
-                title = "Personal Records & Milestones",
+                title = "Personal Records",
                 subtitle = if (records.isEmpty()) {
                     "0 personal records logged yet — log sets to track PRs"
                 } else {
@@ -996,96 +1099,108 @@ private fun PersonalRecordsCard(
                 },
                 actionLabel = "Inspect",
                 actionIcon = Icons.Default.EmojiEvents,
-                actionColor = AppleOverloadOrange,
+                actionColor = AppleCalories,
                 onActionClick = onNavigateToExercises
             )
 
             if (records.isNotEmpty()) {
-                records.take(4).forEachIndexed { index, pr ->
-                    Row(
+                records.take(4).forEach { pr ->
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = RoundedCornerShape(AppleRadius.nestedCard),
+                        color = nestedBg,
+                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        border = nestedBorder
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = pr.exerciseName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "${pr.muscleGroup} • Achieved ${pr.achievedDateLabel}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = AppleOverloadOrange.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, AppleOverloadOrange.copy(alpha = 0.4f))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${formatWeight(pr.bestWeightKg)} × ${pr.bestReps}",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = AppleOverloadOrange,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                maxLines = 1,
-                                softWrap = false
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = pr.exerciseName,
+                                    style = AppleTypeScale.Headline,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${pr.muscleGroup} • Achieved ${pr.achievedDateLabel}",
+                                    style = AppleTypeScale.Footnote,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(AppleRadius.smallControl),
+                                color = ApplePersonalRecords.copy(alpha = if (isDark) 0.18f else 0.22f)
+                            ) {
+                                Text(
+                                    text = "${formatWeight(pr.bestWeightKg)} × ${pr.bestReps}",
+                                    style = AppleTypeScale.Footnote,
+                                    fontWeight = FontWeight.Bold,
+                                    color = prTextColor,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
-                    }
-                    if (index < records.take(4).lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                     }
                 }
             } else {
-                reports.take(3).forEachIndexed { index, report ->
-                    Row(
+                reports.take(3).forEach { report ->
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = RoundedCornerShape(AppleRadius.nestedCard),
+                        color = nestedBg,
+                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        border = nestedBorder
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = report.exerciseName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "${report.muscleGroup} • 0 sessions logged",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = AppleStandBlue.copy(alpha = 0.14f),
-                            border = BorderStroke(1.dp, AppleStandBlue.copy(alpha = 0.35f))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${formatWeight(0f)} × 0",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = AppleStandBlue,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                maxLines = 1,
-                                softWrap = false
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = report.exerciseName,
+                                    style = AppleTypeScale.Headline,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${report.muscleGroup} • 0 sessions logged",
+                                    style = AppleTypeScale.Footnote,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(AppleRadius.smallControl),
+                                color = if (isDark) Color(0xFF3A3A3C) else AppleSurfaceTertiaryLight
+                            ) {
+                                Text(
+                                    text = "${formatWeight(0f)} × 0",
+                                    style = AppleTypeScale.Footnote,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
-                    }
-                    if (index < reports.take(3).lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                     }
                 }
             }
@@ -1100,21 +1215,30 @@ private fun RecentWorkoutHistorySection(
     onReuseWorkout: (WorkoutSessionEntity) -> Unit,
     onStartNewWorkout: () -> Unit
 ) {
-    LiquidGlassCard(accentTint = AppleMindPurple) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val nestedBg = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val nestedBorder = BorderStroke(
+        width = if (isDark) 0.5.dp else 1.dp,
+        color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+    )
+
+    LiquidGlassCard(accentTint = AppleMuscleGroups) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             AppleSectionHeader(
-                title = "Recent Workout Sessions",
+                title = "Recent Workouts",
                 subtitle = if (workouts.isEmpty()) "No sessions recorded yet" else "Tap Repeat to load a past plan",
                 actionLabel = "Build Plan",
                 actionIcon = Icons.Default.FitnessCenter,
-                actionColor = AppleMindPurple,
+                actionColor = AppleSystemBlue,
                 onActionClick = onStartNewWorkout
             )
 
             if (workouts.isEmpty()) {
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                    shape = RoundedCornerShape(AppleRadius.nestedCard),
+                    color = nestedBg,
+                    shadowElevation = if (isDark) 0.dp else 1.dp,
+                    border = nestedBorder
                 ) {
                     Column(
                         modifier = Modifier
@@ -1124,49 +1248,56 @@ private fun RecentWorkoutHistorySection(
                     ) {
                         Text(
                             text = "Build your first workout plan",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            style = AppleTypeScale.Headline,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = "Create a custom plan in the Workouts tab, save it for next time, and tap each exercise as you perform it to start the live timer.",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = AppleTypeScale.Footnote,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             } else {
-                workouts.forEachIndexed { idx, workout ->
+                workouts.forEach { workout ->
                     val dateStr = AnalyticsAndInsightsEngine.formatDateKeyReadable(workout.dateKey)
-                    Row(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        shape = RoundedCornerShape(AppleRadius.nestedCard),
+                        color = nestedBg,
+                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        border = nestedBorder
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = workout.title,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "$dateStr • ${workout.durationMinutes} min • ${workout.totalSets} sets • ${formatVolume(workout.totalVolumeKg)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = workout.title,
+                                    style = AppleTypeScale.Headline,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "$dateStr • ${workout.durationMinutes} min • ${workout.totalSets} sets • ${formatVolume(workout.totalVolumeKg)}",
+                                    style = AppleTypeScale.Footnote,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            LiquidGlassSecondaryButton(
+                                text = "Repeat",
+                                onClick = { onReuseWorkout(workout) },
+                                accentColor = AppleSystemBlue
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        LiquidGlassSecondaryButton(
-                            text = "Repeat",
-                            onClick = { onReuseWorkout(workout) },
-                            accentColor = AppleMindPurple
-                        )
-                    }
-                    if (idx < workouts.lastIndex) {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                     }
                 }
             }
@@ -1180,26 +1311,25 @@ fun OverloadBadge(
     dynamicLabel: String? = null
 ) {
     val color = when (status) {
-        OverloadStatus.NEW_PR -> AppleGoldYellow
-        OverloadStatus.INCREASED_WEIGHT -> AppleExerciseGreen
-        OverloadStatus.MORE_REPS -> AppleStandBlue
-        OverloadStatus.INCREASED_VOLUME -> AppleExerciseGreen
-        OverloadStatus.MAINTAINED_OR_LOWER -> AppleOverloadOrange
-        OverloadStatus.BASELINE_ESTABLISHED -> AppleMindPurple
-        OverloadStatus.INSUFFICIENT_DATA -> AppleStandCyan
+        OverloadStatus.NEW_PR -> ApplePersonalRecords
+        OverloadStatus.INCREASED_WEIGHT -> AppleExercise
+        OverloadStatus.MORE_REPS -> AppleStand
+        OverloadStatus.INCREASED_VOLUME -> AppleExercise
+        OverloadStatus.MAINTAINED_OR_LOWER -> AppleCalories
+        OverloadStatus.BASELINE_ESTABLISHED -> AppleStrengthProgression
+        OverloadStatus.INSUFFICIENT_DATA -> AppleStand
     }
     val label = dynamicLabel ?: status.badgeLabel
 
     Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = color.copy(alpha = 0.16f),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.45f))
+        shape = RoundedCornerShape(AppleRadius.pill),
+        color = color.copy(alpha = 0.14f)
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = AppleTypeScale.Caption1,
             fontWeight = FontWeight.Bold,
-            color = if (status == OverloadStatus.NEW_PR) AppleOverloadOrange else color,
+            color = if (status == OverloadStatus.NEW_PR) AppleCalories else color,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             maxLines = 1,
             softWrap = false,

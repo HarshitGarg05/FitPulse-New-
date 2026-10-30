@@ -68,10 +68,26 @@ import com.example.ui.components.AttendanceCalendarGrid
 import com.example.ui.components.LiquidGlassCard
 import com.example.ui.components.LiquidGlassPrimaryButton
 import com.example.ui.components.LiquidGlassSecondaryButton
+import androidx.compose.ui.graphics.luminance
+import com.example.ui.theme.AppleCalories
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
+import com.example.ui.theme.AppleExercise
 import com.example.ui.theme.AppleExerciseGreen
+import com.example.ui.theme.AppleMove
 import com.example.ui.theme.AppleMoveRed
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
 import com.example.ui.theme.AppleOverloadOrange
+import com.example.ui.theme.AppleRadius
+import com.example.ui.theme.AppleStand
 import com.example.ui.theme.AppleStandBlue
+import com.example.ui.theme.AppleStateError
+import com.example.ui.theme.AppleStateSuccess
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleTypeScale
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
 
@@ -97,15 +113,21 @@ fun AttendanceScreen(
         }
     }
 
+    val isDarkRoot = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val rootCanvasBg = if (isDarkRoot) androidx.compose.ui.graphics.Color(0xFF000000) else androidx.compose.ui.graphics.Color(0xFFF2F2F7)
+
+    // LEVEL 1: Main screen background (#F2F2F7 in Light Mode)
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(rootCanvasBg)
             .testTag("attendance_screen"),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .background(rootCanvasBg)
                 .widthIn(max = 720.dp),
             contentPadding = PaddingValues(
                 start = 20.dp,
@@ -115,11 +137,11 @@ fun AttendanceScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
+            item(key = "attendance_header", contentType = "header") {
                 AppleLargePageHeader(
-                    overlineText = "GYM CHECK-INS, STREAKS & CONSISTENCY",
+                    overlineText = "GYM CHECK-INS & STREAKS",
                     title = "Attendance",
-                    accentColor = if (overview.attendedToday) AppleExerciseGreen else AppleMoveRed,
+                    accentColor = if (overview.attendedToday) AppleStateSuccess else AppleMove,
                     actionLabel = if (overview.attendedToday) "Log Visit" else "Check In",
                     actionIcon = Icons.Default.CheckCircle,
                     actionTestTag = "attendance_primary_checkin_button",
@@ -131,9 +153,8 @@ fun AttendanceScreen(
                     },
                     trailingBadge = {
                         Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = AppleOverloadOrange.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, AppleOverloadOrange.copy(alpha = 0.40f))
+                            shape = RoundedCornerShape(AppleRadius.pill),
+                            color = AppleCalories.copy(alpha = 0.14f)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -144,13 +165,13 @@ fun AttendanceScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(AppleOverloadOrange)
+                                        .background(AppleCalories)
                                 )
                                 Text(
                                     text = if (overview.currentStreakDays > 0) "${overview.currentStreakDays}d Streak" else "No Streak",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AppleOverloadOrange,
+                                    style = AppleTypeScale.Caption1,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = AppleCalories,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -161,7 +182,7 @@ fun AttendanceScreen(
             }
 
             // 1. Weekly Goal Progress & Equal-Height Streak Metrics
-            item {
+            item(key = "attendance_weekly_goal", contentType = "weekly_goal_card") {
                 LiquidGlassCard(accentTint = AppleMoveRed) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
@@ -201,12 +222,18 @@ fun AttendanceScreen(
                         )
 
                         if (showGoalEditor) {
+                            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
                             var sliderVal by remember(overview.weeklyGoalDays) {
                                 mutableFloatStateOf(overview.weeklyGoalDays.toFloat())
                             }
                             Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                shadowElevation = if (isDark) 0.dp else 1.dp,
+                                border = BorderStroke(
+                                    width = if (isDark) 0.5.dp else 1.dp,
+                                    color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                                )
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -216,8 +243,8 @@ fun AttendanceScreen(
                                 ) {
                                     Text(
                                         text = "Target Days Per Week: ${sliderVal.toInt()} days",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold
+                                        style = AppleTypeScale.Subheadline,
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                     Slider(
                                         value = sliderVal,
@@ -238,19 +265,17 @@ fun AttendanceScreen(
                                         valueRange = 1f..7f,
                                         steps = 5,
                                         colors = SliderDefaults.colors(
-                                            thumbColor = AppleMoveRed,
-                                            activeTrackColor = AppleMoveRed
+                                            thumbColor = AppleMove,
+                                            activeTrackColor = AppleMove
                                         )
                                     )
                                 }
                             }
                         }
 
-                        // Equal-Height 4-Metric Row
+                        // Equal-Height 4-Metric Row (single-pass height for scroll smoothness)
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Max),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             EqualHeightMetricMiniBox(
@@ -259,7 +284,7 @@ fun AttendanceScreen(
                                 accent = AppleOverloadOrange,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
+                                    .height(68.dp)
                             )
                             EqualHeightMetricMiniBox(
                                 label = "Best Streak",
@@ -267,7 +292,7 @@ fun AttendanceScreen(
                                 accent = AppleStandBlue,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
+                                    .height(68.dp)
                             )
                             EqualHeightMetricMiniBox(
                                 label = "This Month",
@@ -275,7 +300,7 @@ fun AttendanceScreen(
                                 accent = AppleExerciseGreen,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
+                                    .height(68.dp)
                             )
                             EqualHeightMetricMiniBox(
                                 label = "Total Visits",
@@ -283,7 +308,7 @@ fun AttendanceScreen(
                                 accent = AppleMoveRed,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
+                                    .height(68.dp)
                             )
                         }
                     }
@@ -291,7 +316,7 @@ fun AttendanceScreen(
             }
 
             // 2. 7-Day Attendance Consistency Bar Graph
-            item {
+            item(key = "attendance_bar_chart", contentType = "bar_chart_card") {
                 LiquidGlassCard(accentTint = AppleExerciseGreen) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
@@ -315,7 +340,7 @@ fun AttendanceScreen(
             }
 
             // 3. Interactive Monthly Attendance Calendar
-            item {
+            item(key = "attendance_calendar", contentType = "calendar_card") {
                 LiquidGlassCard(accentTint = AppleStandBlue) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
@@ -360,7 +385,7 @@ fun AttendanceScreen(
             }
 
             // 4. Filterable Chronological Attendance History
-            item {
+            item(key = "attendance_history_header", contentType = "section_header") {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppleSectionHeader(
                         title = "Attendance History",
@@ -388,7 +413,7 @@ fun AttendanceScreen(
             }
 
             if (state.filteredAttendanceRecords.isEmpty()) {
-                item {
+                item(key = "attendance_empty_state", contentType = "empty_state") {
                     LiquidGlassCard(accentTint = AppleStandBlue) {
                         Column(
                             modifier = Modifier
@@ -418,7 +443,11 @@ fun AttendanceScreen(
                     }
                 }
             } else {
-                items(state.filteredAttendanceRecords, key = { it.id }) { record ->
+                items(
+                    items = state.filteredAttendanceRecords,
+                    key = { it.id },
+                    contentType = { "attendance_record_row" }
+                ) { record ->
                     AttendanceRecordRow(
                         record = record,
                         onEdit = {
@@ -444,10 +473,12 @@ fun AttendanceScreen(
                 showLogModalForDateKey = null
                 editingRecord = null
             },
+            shape = RoundedCornerShape(AppleRadius.bottomSheet),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
                     text = if (editingRecord != null) "Edit Gym Check-In" else "Log Gym Attendance",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = AppleTypeScale.Title3,
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -503,7 +534,7 @@ fun AttendanceScreen(
                         showLogModalForDateKey = null
                         editingRecord = null
                     },
-                    accentColor = AppleMoveRed,
+                    accentColor = AppleSystemBlue,
                     testTag = "confirm_attendance_modal_button"
                 )
             },
@@ -518,7 +549,7 @@ fun AttendanceScreen(
                                 editingRecord = null
                             }
                         ) {
-                            Text("Delete", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                            Text("Delete", color = AppleStateError, fontWeight = FontWeight.SemiBold)
                         }
                     }
                     TextButton(
@@ -527,7 +558,7 @@ fun AttendanceScreen(
                             editingRecord = null
                         }
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", color = AppleSystemBlue)
                     }
                 }
             }
@@ -545,7 +576,7 @@ private fun AttendanceRecordRow(
         AnalyticsAndInsightsEngine.formatDateKeyReadable(record.dateKey)
     }
 
-    LiquidGlassCard(accentTint = AppleExerciseGreen) {
+    LiquidGlassCard(accentTint = AppleStateSuccess) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -560,26 +591,26 @@ private fun AttendanceRecordRow(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(AppleExerciseGreen.copy(alpha = 0.16f)),
+                        .background(AppleStateSuccess.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = AppleExerciseGreen
+                        tint = AppleStateSuccess
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = dateFormatted,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = AppleTypeScale.Headline,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${record.note.ifBlank { "Gym attendance verified" }} • ${record.durationMinutes} min",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = AppleTypeScale.Footnote,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -591,14 +622,14 @@ private fun AttendanceRecordRow(
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Edit Check-In",
-                        tint = AppleStandBlue
+                        tint = AppleSystemBlue
                     )
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Delete Check-In",
-                        tint = MaterialTheme.colorScheme.error
+                        tint = AppleStateError
                     )
                 }
             }

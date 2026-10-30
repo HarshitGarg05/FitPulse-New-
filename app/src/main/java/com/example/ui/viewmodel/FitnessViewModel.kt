@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -84,6 +85,27 @@ private data class CoreDataFlows(
     val completedSessions: List<WorkoutSessionEntity>,
     val draftSessions: List<WorkoutSessionEntity>,
     val allSets: List<WorkoutSetEntity>
+)
+
+private data class AttendanceCacheKey(
+    val records: List<GymAttendanceEntity>,
+    val profile: UserProfileEntity,
+    val year: Int,
+    val monthZeroBased: Int,
+    val todayKey: String
+)
+
+private data class DashboardAnalyticsCacheKey(
+    val dateRange: AnalyticsDateRange,
+    val attendanceRecords: List<GymAttendanceEntity>,
+    val exercises: List<ExerciseEntity>,
+    val completedSessions: List<WorkoutSessionEntity>,
+    val allSets: List<WorkoutSetEntity>,
+    val profile: UserProfileEntity,
+    val activeWorkoutTitle: String,
+    val activeWorkoutDateKey: String,
+    val activeDraftSets: List<DraftSetEntry>,
+    val todayKey: String
 )
 
 private data class UiControlState(
@@ -158,6 +180,18 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private var restTimerJob: Job? = null
     private var nextDraftSetId = 1000L
 
+    @Volatile
+    private var lastAttendanceCache: Pair<AttendanceCacheKey, AttendanceOverview>? = null
+
+    @Volatile
+    private var lastAnalyticsCache: Pair<DashboardAnalyticsCacheKey, DashboardAnalyticsSummary>? = null
+
+    val themeModeFlow: StateFlow<ThemeMode> = repository.themeModeFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = ThemeMode.LIGHT
+    )
+
     init {
         viewModelScope.launch {
             repository.initializeIfNeeded()
@@ -195,15 +229,27 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         val profile = core.profile
         val useLbs = profile.preferredWeightUnit.equals("lbs", ignoreCase = true)
         val unitLabel = if (useLbs) "lbs" else "kg"
+        val todayKey = AnalyticsAndInsightsEngine.todayDateKey()
 
-        val attendanceOverview = AnalyticsAndInsightsEngine.buildAttendanceOverview(
+        val attendanceKey = AttendanceCacheKey(
             records = core.attendance,
             profile = profile,
-            selectedCalendarYear = ctrl.selectedCalendarYear,
-            selectedCalendarMonthZeroBased = ctrl.selectedCalendarMonthZeroBased
+            year = ctrl.selectedCalendarYear,
+            monthZeroBased = ctrl.selectedCalendarMonthZeroBased,
+            todayKey = todayKey
         )
+        val cachedAttendance = lastAttendanceCache
+        val attendanceOverview = if (cachedAttendance != null && cachedAttendance.first == attendanceKey) {
+            cachedAttendance.second
+        } else {
+            AnalyticsAndInsightsEngine.buildAttendanceOverview(
+                records = core.attendance,
+                profile = profile,
+                selectedCalendarYear = ctrl.selectedCalendarYear,
+                selectedCalendarMonthZeroBased = ctrl.selectedCalendarMonthZeroBased
+            ).also { lastAttendanceCache = attendanceKey to it }
+        }
 
-        val todayKey = AnalyticsAndInsightsEngine.todayDateKey()
         val attendanceCutoff = ctrl.attendanceFilterRange.days?.let { days ->
             AnalyticsAndInsightsEngine.dateKeyForDaysAgo(days - 1)
         }
@@ -220,17 +266,35 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             emptyList()
         }
 
-        val dashboardAnalytics = AnalyticsAndInsightsEngine.buildDashboardAnalytics(
+        val activeWorkoutTitle = ctrl.activeWorkout.title.ifBlank { "Live Workout" }
+        val analyticsKey = DashboardAnalyticsCacheKey(
             dateRange = ctrl.analyticsDateRange,
             attendanceRecords = core.attendance,
             exercises = core.exercises,
             completedSessions = core.completedSessions,
             allSets = core.allSets,
             profile = profile,
-            activeWorkoutTitle = ctrl.activeWorkout.title.ifBlank { "Live Workout" },
+            activeWorkoutTitle = activeWorkoutTitle,
             activeWorkoutDateKey = ctrl.activeWorkout.dateKey,
-            activeDraftSets = liveCompletedSets
+            activeDraftSets = liveCompletedSets,
+            todayKey = todayKey
         )
+        val cachedAnalytics = lastAnalyticsCache
+        val dashboardAnalytics = if (cachedAnalytics != null && cachedAnalytics.first == analyticsKey) {
+            cachedAnalytics.second
+        } else {
+            AnalyticsAndInsightsEngine.buildDashboardAnalytics(
+                dateRange = ctrl.analyticsDateRange,
+                attendanceRecords = core.attendance,
+                exercises = core.exercises,
+                completedSessions = core.completedSessions,
+                allSets = core.allSets,
+                profile = profile,
+                activeWorkoutTitle = activeWorkoutTitle,
+                activeWorkoutDateKey = ctrl.activeWorkout.dateKey,
+                activeDraftSets = liveCompletedSets
+            ).also { lastAnalyticsCache = analyticsKey to it }
+        }
 
         val filteredExercises = core.exercises.filter { ex ->
             val archiveMatch = if (ctrl.showArchivedExercises) true else !ex.isArchived
@@ -296,7 +360,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             localBackupSnapshots = ctrl.localBackupSnapshots,
             statusMessage = ctrl.statusMessage
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = FitPulseUiState()

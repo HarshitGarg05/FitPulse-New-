@@ -50,26 +50,25 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.DynamicIslandNavItem
 import com.example.ui.components.LiquidGlassAmbientBackground
 import com.example.ui.components.LiquidGlassDynamicIslandBar
-import com.example.ui.components.OriginIslandLiveTopCapsule
 import com.example.ui.screens.AttendanceScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.GoalsAndRecoveryScreen
 import com.example.ui.screens.ProfileAndPrivacyScreen
 import com.example.ui.screens.WorkoutLoggerScreen
-import com.example.ui.theme.AppleExerciseGreen
-import com.example.ui.theme.AppleMindPurple
 import com.example.ui.theme.AppleMoveRed
-import com.example.ui.theme.AppleOverloadOrange
-import com.example.ui.theme.AppleStandBlue
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AppDestination
 import com.example.ui.viewmodel.FitnessViewModel
@@ -79,18 +78,35 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        window.decorView.setBackgroundColor(android.graphics.Color.parseColor("#F2F2F7"))
         configureHighRefreshRateDisplay()
         OriginIslandLiveManager.ensureChannelCreated(this)
         setContent {
             val fitnessViewModel: FitnessViewModel = viewModel()
-            val state by fitnessViewModel.uiState.collectAsStateWithLifecycle()
+            val themeMode by fitnessViewModel.themeModeFlow.collectAsStateWithLifecycle()
 
-            MyApplicationTheme(themeMode = state.themeMode) {
+            MyApplicationTheme(themeMode = themeMode) {
                 FitPulseApp(
                     viewModel = fitnessViewModel
                 )
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        OriginIslandLiveManager.isAppMinimized = false
+        OriginIslandLiveManager.cancelOriginIsland(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        configureHighRefreshRateDisplay()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        OriginIslandLiveManager.isAppMinimized = true
     }
 
     /**
@@ -116,9 +132,13 @@ class MainActivity : ComponentActivity() {
 
             if (bestHighRefreshMode != null) {
                 val layoutParams = window.attributes
-                layoutParams.preferredDisplayModeId = bestHighRefreshMode.modeId
-                layoutParams.preferredRefreshRate = bestHighRefreshMode.refreshRate
-                window.attributes = layoutParams
+                if (layoutParams.preferredDisplayModeId != bestHighRefreshMode.modeId ||
+                    layoutParams.preferredRefreshRate != bestHighRefreshMode.refreshRate
+                ) {
+                    layoutParams.preferredDisplayModeId = bestHighRefreshMode.modeId
+                    layoutParams.preferredRefreshRate = bestHighRefreshMode.refreshRate
+                    window.attributes = layoutParams
+                }
             }
         }
     }
@@ -129,17 +149,19 @@ fun FitPulseApp(
     viewModel: FitnessViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentState by rememberUpdatedState(state)
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { _ ->
         OriginIslandLiveManager.syncOriginIslandState(
             context = context,
-            activeWorkout = state.activeWorkout,
-            unitLabel = state.unitLabel,
-            useLbs = state.useLbs
+            activeWorkout = currentState.activeWorkout,
+            unitLabel = currentState.unitLabel,
+            useLbs = currentState.useLbs
         )
     }
 
@@ -147,10 +169,36 @@ fun FitPulseApp(
         OriginIslandLiveManager.onToggleTimerCallback = { viewModel.toggleWorkoutTimer() }
         OriginIslandLiveManager.onSkipRestCallback = { viewModel.stopRestTimer() }
         OriginIslandLiveManager.onAddRest15sCallback = {
-            val next = (state.activeWorkout.restTimerRemainingSeconds + 15).coerceAtLeast(15)
+            val next = (currentState.activeWorkout.restTimerRemainingSeconds + 15).coerceAtLeast(15)
             viewModel.startRestTimer(next)
         }
         onDispose { }
+    }
+
+    // Track foreground vs minimized state so iQOO/vivo Origin Island only triggers when the app is minimized
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> {
+                    OriginIslandLiveManager.isAppMinimized = false
+                    OriginIslandLiveManager.cancelOriginIsland(context)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    OriginIslandLiveManager.isAppMinimized = true
+                    OriginIslandLiveManager.syncOriginIslandState(
+                        context = context,
+                        activeWorkout = currentState.activeWorkout,
+                        unitLabel = currentState.unitLabel,
+                        useLbs = currentState.useLbs
+                    )
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     // Request notification permission when a live workout starts so Vivo/iQOO OriginOS 6 Origin Island works when minimized
@@ -166,7 +214,7 @@ fun FitPulseApp(
         }
     }
 
-    // Continuously sync OriginOS 6 Origin Island / Android Promoted Live Activity state (even when minimized)
+    // Continuously sync OriginOS 6 Origin Island state ONLY when minimized
     LaunchedEffect(
         state.activeWorkout.isWorkoutActive,
         state.activeWorkout.title,
@@ -181,12 +229,14 @@ fun FitPulseApp(
         state.unitLabel,
         state.useLbs
     ) {
-        OriginIslandLiveManager.syncOriginIslandState(
-            context = context,
-            activeWorkout = state.activeWorkout,
-            unitLabel = state.unitLabel,
-            useLbs = state.useLbs
-        )
+        if (OriginIslandLiveManager.isAppMinimized) {
+            OriginIslandLiveManager.syncOriginIslandState(
+                context = context,
+                activeWorkout = state.activeWorkout,
+                unitLabel = state.unitLabel,
+                useLbs = state.useLbs
+            )
+        }
     }
 
     BackHandler(enabled = state.currentTab != AppDestination.SUMMARY) {
@@ -246,10 +296,15 @@ fun FitPulseApp(
         )
     }
 
+    val isDark = state.themeMode == com.example.ui.theme.ThemeMode.DARK
+    val rootBgColor = if (isDark) Color(0xFF000000) else Color(0xFFF2F2F7)
+
     LiquidGlassAmbientBackground {
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(rootBgColor),
+            containerColor = rootBgColor,
             contentColor = MaterialTheme.colorScheme.onBackground,
             contentWindowInsets = WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Horizontal + WindowInsetsSides.Top
@@ -266,12 +321,15 @@ fun FitPulseApp(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(rootBgColor)
                     .padding(innerPadding)
             ) {
                 // Content scrolls freely all the way to the bottom underneath the floating navbar
                 AnimatedContent(
                     targetState = state.currentTab,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(rootBgColor),
                     transitionSpec = {
                         fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
                     },
@@ -308,74 +366,8 @@ fun FitPulseApp(
                     onSelect = { viewModel.selectTab(it) },
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
-
-                // Live Dynamic Island Punch-Hole Top Capsule (Vivo Origin Island & Moto Live Updates in-app counterpart)
-                val isWorkoutOrRestActive = state.activeWorkout.isWorkoutActive ||
-                    (state.activeWorkout.isRestTimerRunning && state.activeWorkout.restTimerRemainingSeconds > 0)
-                val isRestingNow = state.activeWorkout.isRestTimerRunning && state.activeWorkout.restTimerRemainingSeconds > 0
-                val activeEx = state.activeWorkout.activeExerciseName
-
-                val headline: String
-                val subtitle: String
-                val timerBadge: String
-                val capsuleAccent: Color
-
-                if (isRestingNow) {
-                    val restTime = formatClock(state.activeWorkout.restTimerRemainingSeconds)
-                    headline = "Rest Timer • $restTime"
-                    subtitle = if (!activeEx.isNullOrBlank()) "Next set: $activeEx" else "Rest and recover"
-                    timerBadge = "REST $restTime"
-                    capsuleAccent = AppleOverloadOrange
-                } else if (!activeEx.isNullOrBlank()) {
-                    val exTime = formatClock(state.activeWorkout.activeExerciseElapsedSeconds)
-                    val completedSets = state.activeWorkout.sets.count { it.status.equals("COMPLETED", ignoreCase = true) }
-                    val totalSets = state.activeWorkout.sets.size.coerceAtLeast(1)
-                    headline = "$activeEx • $exTime"
-                    subtitle = "$completedSets/$totalSets sets done"
-                    timerBadge = if (state.activeWorkout.isTimerRunning) "LIVE $exTime" else "PAUSED"
-                    capsuleAccent = AppleExerciseGreen
-                } else {
-                    val totalTime = formatClock(state.activeWorkout.elapsedSeconds)
-                    val wTitle = state.activeWorkout.title.ifBlank { "Live Gym Session" }
-                    headline = "$wTitle • $totalTime"
-                    subtitle = "Tap an exercise to begin tracking"
-                    timerBadge = "GYM $totalTime"
-                    capsuleAccent = AppleStandBlue
-                }
-
-                OriginIslandLiveTopCapsule(
-                    isVisible = isWorkoutOrRestActive && state.currentTab != AppDestination.WORKOUTS,
-                    isResting = isRestingNow,
-                    isTimerRunning = state.activeWorkout.isTimerRunning,
-                    headlineText = headline,
-                    subtitleText = subtitle,
-                    timerBadgeText = timerBadge,
-                    accentColor = capsuleAccent,
-                    onToggleTimer = { viewModel.toggleWorkoutTimer() },
-                    onAddRest15s = {
-                        val next = (state.activeWorkout.restTimerRemainingSeconds + 15).coerceAtLeast(15)
-                        viewModel.startRestTimer(next)
-                    },
-                    onSkipRest = { viewModel.stopRestTimer() },
-                    onOpenWorkoutLogger = { viewModel.selectTab(AppDestination.WORKOUTS) },
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp)
-                )
             }
         }
-    }
-}
-
-private fun formatClock(totalSeconds: Int): String {
-    val safe = totalSeconds.coerceAtLeast(0)
-    val hrs = safe / 3600
-    val mins = (safe % 3600) / 60
-    val secs = safe % 60
-    return if (hrs > 0) {
-        String.format(java.util.Locale.US, "%d:%02d:%02d", hrs, mins, secs)
-    } else {
-        String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
     }
 }
 

@@ -35,28 +35,31 @@ object AppleSpacing {
 
 /**
  * Standard Apple HIG Corner Radius Geometry
+ * - Level 2 Primary Content Cards: 20.dp
+ * - Level 3 Secondary / Nested Cards: 16.dp
  */
 object AppleRadius {
     val smallControl = 10.dp
-    val inputField = 12.dp
-    val standardCard = 16.dp
+    val inputField = 16.dp
+    val nestedCard = 16.dp
+    val standardCard = 20.dp
     val largeCard = 20.dp
-    val heroCard = 24.dp
+    val heroCard = 20.dp
     val bottomSheet = 28.dp
     val pill = 999.dp
 }
 
 private val AppleHealthLightColorScheme = lightColorScheme(
     primary = AppleMove,
-    onPrimary = Color.White,
+    onPrimary = AppleTextInverseLight,
     primaryContainer = AppleMoveRedContainerLight,
     onPrimaryContainer = Color(0xFF5C0018),
     secondary = AppleStand,
-    onSecondary = Color.White,
+    onSecondary = AppleTextInverseLight,
     secondaryContainer = AppleStandBlueContainerLight,
     onSecondaryContainer = Color(0xFF002D62),
     tertiary = AppleExercise,
-    onTertiary = Color.White,
+    onTertiary = AppleTextInverseLight,
     tertiaryContainer = AppleExerciseGreenContainerLight,
     onTertiaryContainer = Color(0xFF053814),
     background = AppleBgLight,
@@ -65,19 +68,25 @@ private val AppleHealthLightColorScheme = lightColorScheme(
     onSurface = AppleTextPrimaryLight,
     surfaceVariant = AppleSurfaceSecondaryLight,
     onSurfaceVariant = AppleTextSecondaryLight,
-    outline = AppleOutlineLight,
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = AppleBgLight,
+    surfaceContainerLow = AppleSurfaceSecondaryLight,
+    surfaceContainer = AppleSurfaceLight,
+    surfaceContainerHigh = AppleSurfaceSecondaryLight,
+    surfaceContainerHighest = AppleSurfaceTertiaryLight,
+    outline = AppleCardBorderLight,
     outlineVariant = AppleSeparatorLight,
     error = AppleStateError,
-    onError = Color.White
+    onError = AppleTextInverseLight
 )
 
 private val AppleHealthDarkColorScheme = darkColorScheme(
     primary = AppleMove,
-    onPrimary = Color.White,
+    onPrimary = AppleTextInverseLight,
     primaryContainer = AppleMoveRedContainerDark,
     onPrimaryContainer = Color(0xFFFFD9E2),
     secondary = AppleStand,
-    onSecondary = Color.White,
+    onSecondary = AppleTextInverseLight,
     secondaryContainer = AppleStandBlueContainerDark,
     onSecondaryContainer = Color(0xFFD4E7FF),
     tertiary = AppleExercise,
@@ -90,10 +99,16 @@ private val AppleHealthDarkColorScheme = darkColorScheme(
     onSurface = AppleTextPrimaryDark,
     surfaceVariant = AppleSurfaceSecondaryDark,
     onSurfaceVariant = AppleTextSecondaryDark,
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = AppleBgDark,
+    surfaceContainerLow = AppleSurfaceDark,
+    surfaceContainer = AppleSurfaceDark,
+    surfaceContainerHigh = AppleSurfaceSecondaryDark,
+    surfaceContainerHighest = AppleSurfaceTertiaryDark,
     outline = AppleOutlineDark,
     outlineVariant = AppleSeparatorDark,
     error = AppleStateError,
-    onError = Color.White
+    onError = AppleTextInverseLight
 )
 
 val FitPulseShapes = Shapes(
@@ -106,7 +121,7 @@ val FitPulseShapes = Shapes(
 
 @Composable
 fun MyApplicationTheme(
-    themeMode: ThemeMode = ThemeMode.DARK,
+    themeMode: ThemeMode = ThemeMode.LIGHT,
     content: @Composable () -> Unit
 ) {
     val useDark = when (themeMode) {

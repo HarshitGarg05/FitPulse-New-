@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -19,6 +20,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -33,6 +35,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -89,11 +92,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.ExerciseEntity
 import com.example.ui.theme.AppleAccessoryCircleDark
 import com.example.ui.theme.AppleAccessoryCircleLight
+import com.example.ui.theme.AppleBgDark
+import com.example.ui.theme.AppleBgLight
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
 import com.example.ui.theme.AppleExerciseGreen
 import com.example.ui.theme.AppleHealthDarkBg
 import com.example.ui.theme.AppleHealthDarkContainer
@@ -105,21 +113,42 @@ import com.example.ui.theme.AppleHealthLightOutline
 import com.example.ui.theme.AppleHealthLightSurface
 import com.example.ui.theme.AppleMindPurple
 import com.example.ui.theme.AppleMoveRed
-import com.example.ui.theme.AppleOverloadOrange
-import com.example.ui.theme.AppleStandBlue
-import com.example.ui.theme.AppleRadius
-import com.example.ui.theme.AppleSpacing
-import com.example.ui.theme.AppleTypeScale
-import com.example.ui.theme.AppleSurfaceLight
-import com.example.ui.theme.AppleSurfaceDark
-import com.example.ui.theme.AppleSurfaceSecondaryLight
-import com.example.ui.theme.AppleSurfaceSecondaryDark
-import com.example.ui.theme.AppleSurfaceTertiaryLight
-import com.example.ui.theme.AppleSeparatorLight
-import com.example.ui.theme.AppleSeparatorDark
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
+import com.example.ui.theme.AppleOutlineDark
 import com.example.ui.theme.AppleOutlineLight
+import com.example.ui.theme.AppleOverloadOrange
+import com.example.ui.theme.AppleRadius
+import com.example.ui.theme.AppleSeparatorDark
+import com.example.ui.theme.AppleSeparatorLight
+import com.example.ui.theme.AppleSpacing
+import com.example.ui.theme.AppleStandBlue
+import com.example.ui.theme.AppleStandCyan
+import com.example.ui.theme.AppleStateDisabled
+import com.example.ui.theme.AppleSurfaceDark
+import com.example.ui.theme.AppleSurfaceLight
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSurfaceTertiaryDark
+import com.example.ui.theme.AppleSurfaceTertiaryLight
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleSystemPink
+import com.example.ui.theme.AppleTextInverseLight
 import com.example.ui.theme.AppleTextPlaceholderLight
+import com.example.ui.theme.AppleTextPrimaryDark
+import com.example.ui.theme.AppleTextPrimaryLight
+import com.example.ui.theme.AppleTextSecondaryDark
+import com.example.ui.theme.AppleTextSecondaryLight
+import com.example.ui.theme.AppleTypeScale
 import java.util.Locale
+
+private val PrimaryCardShape = RoundedCornerShape(20.dp)
+private val NestedCardShape = RoundedCornerShape(16.dp)
+private val NavPillShape = RoundedCornerShape(100.dp)
+private val LightPrimaryCardBorder = BorderStroke(1.dp, Color(0xFFE8E8ED))
+private val DarkPrimaryCardBorder = BorderStroke(1.dp, AppleCardBorderDark)
+private val LightNestedCardBorder = BorderStroke(1.dp, Color(0xFFEBEBF0))
+private val DarkNestedCardBorder = BorderStroke(0.5.dp, AppleNestedCardBorderDark)
 
 /**
  * Compatible CompositionLocal so any callers referencing `LocalLiquidGlassPhase` continue to compile.
@@ -127,26 +156,29 @@ import java.util.Locale
 val LocalLiquidGlassPhase = compositionLocalOf<State<Float>> { mutableFloatStateOf(0f) }
 
 /**
- * Exact Apple Health / Fitness clean solid background.
- * Completely removes any liquid glass moving caustics or auroras.
- * Dark Mode: pitch black OLED (`#000000`).
- * Light Mode: iOS system grouped background (`#F2F2F7`).
+ * Reusable Root Screen Background Component (`AppleScreenContainer`).
+ * Explicitly forces the root canvas background to `#F2F2F7` (`Color(0xFFF2F2F7)`) in Light Mode
+ * and `#000000` in Dark Mode so child `#FFFFFF` cards never sit on a white parent surface.
  */
 @Composable
-fun LiquidGlassAmbientBackground(
+fun AppleScreenContainer(
     modifier: Modifier = Modifier,
+    testTag: String? = null,
+    contentAlignment: Alignment = Alignment.TopCenter,
     content: @Composable () -> Unit
 ) {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val baseBgColor = if (isDark) AppleHealthDarkBg else AppleHealthLightBg
+    val rootCanvasColor = if (isDark) Color(0xFF000000) else Color(0xFFF2F2F7)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(baseBgColor)
+            .background(rootCanvasColor)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+        contentAlignment = contentAlignment
     ) {
         CompositionLocalProvider(
-            LocalContentColor provides MaterialTheme.colorScheme.onBackground
+            LocalContentColor provides if (isDark) AppleTextPrimaryDark else Color(0xFF000000)
         ) {
             content()
         }
@@ -154,11 +186,92 @@ fun LiquidGlassAmbientBackground(
 }
 
 /**
- * Exact Apple Health & Fitness Modular Card.
- * - Solid `#1C1C1E` dark surface (Apple Secondary System Grouped Background) or pure white in light mode.
- * - 16dp rounded corners (`RoundedCornerShape(16.dp)`).
- * - Clean, flat, subtle border (zero liquid glass or caustic reflections).
- * - Retains smooth responsive press animation.
+ * Exact Apple Health / Fitness clean solid background (`#F2F2F7` in Light Mode).
+ */
+@Composable
+fun LiquidGlassAmbientBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    AppleScreenContainer(
+        modifier = modifier,
+        content = content
+    )
+}
+
+/**
+ * Reusable Primary Content Card (`AppleStyleCard`).
+ * Explicitly renders:
+ * - Background: `#FFFFFF` (`Color(0xFFFFFFFF)`) in Light Mode
+ * - Border: `1.dp` solid `#E8E8ED` (`Color(0xFFE8E8ED)`)
+ * - Shape: `RoundedCornerShape(20.dp)`
+ * - Elevation: `3.dp` soft diffused shadow (single hardware shadow layer for 120Hz scroll smoothness)
+ * - Internal padding: `16.dp`
+ */
+@Composable
+fun AppleStyleCard(
+    modifier: Modifier = Modifier,
+    accentTint: Color = AppleStandBlue,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val onSurfaceColor = if (isDark) AppleTextPrimaryDark else Color(0xFF000000)
+    val cardBg = if (isDark) AppleSurfaceDark else Color(0xFFFFFFFF)
+    val cardBorder = if (isDark) DarkPrimaryCardBorder else LightPrimaryCardBorder
+    val cardElevation = if (isDark) 0.dp else 3.dp
+
+    val clickableAndScaleModifier = if (onClick != null) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.985f else 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMedium
+            ),
+            label = "appleCardScale"
+        )
+        Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    } else {
+        Modifier
+    }
+
+    CompositionLocalProvider(LocalContentColor provides onSurfaceColor) {
+        Surface(
+            modifier = modifier
+                .fillMaxWidth()
+                .then(clickableAndScaleModifier),
+            shape = PrimaryCardShape,
+            color = cardBg,
+            contentColor = onSurfaceColor,
+            shadowElevation = cardElevation,
+            tonalElevation = 0.dp,
+            border = cardBorder
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(contentPadding)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+/**
+ * Primary Content Card alias (`LiquidGlassCard`) delegating to `AppleStyleCard`.
  */
 @Composable
 fun LiquidGlassCard(
@@ -167,68 +280,190 @@ fun LiquidGlassCard(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "appleCardScale"
+    AppleStyleCard(
+        modifier = modifier,
+        accentTint = accentTint,
+        onClick = onClick,
+        content = content
     )
+}
 
-    val shape = RoundedCornerShape(AppleRadius.standardCard)
-    val cardBg = if (isDark) AppleSurfaceDark else AppleSurfaceLight
-    val cardBorder = if (isDark) {
-        BorderStroke(0.5.dp, AppleSeparatorDark.copy(alpha = 0.55f))
-    } else {
-        BorderStroke(0.5.dp, AppleSeparatorLight.copy(alpha = 0.60f))
+/**
+ * Reusable Secondary / Nested Card (`AppleNestedCard`).
+ * - Light Mode:
+ *   - Color: `#FAFAFC` (`AppleSurfaceSecondaryLight`)
+ *   - Border: `#EBEBF0` (`AppleNestedCardBorderLight`, 1.dp)
+ *   - Corner radius: `16.dp` (`AppleRadius.nestedCard`)
+ *   - Elevation: `1.dp`
+ */
+@Composable
+fun AppleNestedCard(
+    modifier: Modifier = Modifier,
+    paddingValues: PaddingValues = PaddingValues(12.dp),
+    content: @Composable () -> Unit
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val nestedBg = if (isDark) AppleSurfaceSecondaryDark else Color(0xFFFAFAFC)
+    val nestedBorder = if (isDark) DarkNestedCardBorder else LightNestedCardBorder
+    Surface(
+        modifier = modifier,
+        shape = NestedCardShape,
+        color = nestedBg,
+        contentColor = if (isDark) AppleTextPrimaryDark else Color(0xFF000000),
+        shadowElevation = if (isDark) 0.dp else 1.dp,
+        tonalElevation = 0.dp,
+        border = nestedBorder
+    ) {
+        Box(modifier = Modifier.padding(paddingValues)) {
+            content()
+        }
     }
+}
 
-    CompositionLocalProvider(LocalContentColor provides onSurfaceColor) {
-        Surface(
-            modifier = modifier
+/**
+ * Reusable Modular Metric Card (`AppleStyleMetricCard`).
+ * Pure white card (`#FFFFFF`, `20.dp` radius, `3.dp` elevation, `1.dp` `#E8E8ED` border, `16.dp` internal padding)
+ * sitting directly on the `#F2F2F7` screen canvas.
+ */
+@Composable
+fun AppleStyleMetricCard(
+    label: String,
+    primaryValue: String,
+    secondaryValue: String,
+    icon: ImageVector,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
+) {
+    AppleStyleCard(
+        modifier = modifier,
+        accentTint = accentColor,
+        contentPadding = PaddingValues(16.dp),
+        onClick = onClick
+    ) {
+        Column(
+            modifier = Modifier
                 .fillMaxWidth()
-                .shadow(
-                    elevation = if (isDark) 0.dp else 1.5.dp,
-                    shape = shape,
-                    spotColor = Color.Black.copy(alpha = 0.04f),
-                    ambientColor = Color.Black.copy(alpha = 0.02f)
-                )
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                }
-                .then(
-                    if (onClick != null) {
-                        Modifier.clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = onClick
-                        )
-                    } else {
-                        Modifier
-                    }
-                )
-                .animateContentSize(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-            shape = shape,
-            color = cardBg,
-            contentColor = onSurfaceColor,
-            border = cardBorder
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(modifier = Modifier.padding(16.dp)) {
-                content()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(accentColor.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = primaryValue,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = secondaryValue,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/**
+ * Reusable Section Container (`AppleStyleSection`) with outside section heading and spaced child content.
+ */
+@Composable
+fun AppleStyleSection(
+    title: String,
+    subtitle: String? = null,
+    actionLabel: String? = null,
+    actionIcon: ImageVector? = null,
+    actionColor: Color = AppleMoveRed,
+    actionTestTag: String? = null,
+    onActionClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AppleSectionHeader(
+            title = title,
+            subtitle = subtitle,
+            actionLabel = actionLabel,
+            actionIcon = actionIcon,
+            actionColor = actionColor,
+            actionTestTag = actionTestTag,
+            onActionClick = onActionClick
+        )
+        content()
+    }
+}
+
+/**
+ * Reusable Grouped Primary Card (`AppleStyleGroupedCard`) for grouping related rows or metrics
+ * inside a `#FFFFFF` card (`20.dp` radius, `3.dp` elevation, `#E8E8ED` border).
+ */
+@Composable
+fun AppleStyleGroupedCard(
+    modifier: Modifier = Modifier,
+    accentTint: Color = AppleStandBlue,
+    title: String? = null,
+    subtitle: String? = null,
+    actionLabel: String? = null,
+    actionIcon: ImageVector? = null,
+    actionColor: Color = AppleMoveRed,
+    actionTestTag: String? = null,
+    onActionClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    AppleStyleCard(
+        modifier = modifier,
+        accentTint = accentTint
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (!title.isNullOrBlank()) {
+                AppleSectionHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    actionLabel = actionLabel,
+                    actionIcon = actionIcon,
+                    actionColor = actionColor,
+                    actionTestTag = actionTestTag,
+                    onActionClick = onActionClick
+                )
+            }
+            content()
         }
     }
 }
@@ -334,16 +569,20 @@ data class DynamicIslandNavItem<T>(
     val testTag: String
 )
 
+private val SelectedNavContentColor = Color(0xFFFF2D55)
+private val UnselectedNavContentColor = Color(0xFF8E8E93)
+private val SelectedNavHighlightShape = RoundedCornerShape(14.dp)
+
 /**
- * Floating iOS-Style Pill Navigation Bar.
- * - Floating capsule container inset horizontally by 18dp.
- * - Fully rounded capsule shape (999.dp).
- * - Frosted glass translucent background with subtle specular sheen and layered highlights.
- * - Thin semi-transparent white/light border and soft diffused drop shadow.
- * - Positioned safely above system gesture insets without touching screen edges.
- * - Active item highlighted by a subtle translucent pink rounded pill (#FF2D55) with pink icon & label.
- * - Inactive items in Apple system gray (#8E8E93).
- * - Equal-width navigation destinations with centered icons and accessible touch targets.
+ * Floating Apple-Inspired Navigation Bar.
+ *
+ * SELECTED STATE:
+ * - Translucent rounded-rectangle highlight behind BOTH icon and label
+ * - Icon tint: #FF2D55
+ * - Label color: #FF2D55
+ * - Label font weight: Semibold
+ * - Shape: RoundedCornerShape(14.dp) (rectangle-shaped with smooth rounded corners)
+ * - Full non-cropped single-line label layout
  */
 @Composable
 fun <T> LiquidGlassDynamicIslandBar(
@@ -355,165 +594,195 @@ fun <T> LiquidGlassDynamicIslandBar(
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val context = LocalContext.current
 
-    // Active Move accent #FF2D55
-    val activeAccentColor = Color(0xFFFF2D55)
-    val inactiveNavColor = Color(0xFF8E8E93)
+    val pillBgBase = if (isDark) {
+        AppleSurfaceDark.copy(alpha = 0.94f)
+    } else {
+        AppleSurfaceLight.copy(alpha = 0.96f)
+    }
+    val borderColor = if (isDark) {
+        AppleCardBorderDark
+    } else {
+        AppleSeparatorLight
+    }
 
-    // Capsule background colors
-    val pillBgBase = if (isDark) Color(0xD91C1C1E) else Color(0xEBFFFFFF)
-    val borderColor = if (isDark) Color(0x33FFFFFF) else Color(0xB8FFFFFF)
+    val selectedHighlightFill = if (isDark) {
+        SelectedNavContentColor.copy(alpha = 0.22f)
+    } else {
+        SelectedNavContentColor.copy(alpha = 0.14f)
+    }
+    val selectedHighlightBorder = if (isDark) {
+        SelectedNavContentColor.copy(alpha = 0.34f)
+    } else {
+        SelectedNavContentColor.copy(alpha = 0.24f)
+    }
+
+    val glassSheenBrush = remember(isDark) {
+        Brush.verticalGradient(
+            colors = if (isDark) {
+                listOf(
+                    AppleTextInverseLight.copy(alpha = 0.10f),
+                    AppleTextInverseLight.copy(alpha = 0.02f),
+                    AppleTextPrimaryLight.copy(alpha = 0.10f)
+                )
+            } else {
+                listOf(
+                    AppleSurfaceLight.copy(alpha = 0.98f),
+                    AppleSurfaceSecondaryLight.copy(alpha = 0.88f),
+                    AppleSurfaceLight.copy(alpha = 0.95f)
+                )
+            }
+        )
+    }
+
+    val topRimBrush = remember(isDark) {
+        Brush.horizontalGradient(
+            colors = if (isDark) {
+                listOf(
+                    Color.Transparent,
+                    AppleTextInverseLight.copy(alpha = 0.22f),
+                    Color.Transparent
+                )
+            } else {
+                listOf(
+                    Color.Transparent,
+                    AppleTextInverseLight.copy(alpha = 0.92f),
+                    Color.Transparent
+                )
+            }
+        )
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 18.dp, end = 18.dp, bottom = 12.dp),
+            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .shadow(
-                    elevation = 16.dp,
-                    shape = RoundedCornerShape(999.dp),
-                    spotColor = if (isDark) Color.Black.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.16f),
-                    ambientColor = if (isDark) Color.Black.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.10f)
-                ),
-            shape = RoundedCornerShape(999.dp),
+                .height(68.dp),
+            shape = RoundedCornerShape(24.dp),
             color = pillBgBase,
+            shadowElevation = 8.dp,
+            tonalElevation = 0.dp,
             border = BorderStroke(1.dp, borderColor)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Layered frosted glass specular gradient highlight
+                // Frosted glass sheen layer (without expensive per-frame RenderEffect blur)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = if (isDark) {
-                                    listOf(
-                                        Color(0x28FFFFFF),
-                                        Color(0x08FFFFFF),
-                                        Color(0x18000000)
-                                    )
-                                } else {
-                                    listOf(
-                                        Color(0x99FFFFFF),
-                                        Color(0x40FFFFFF),
-                                        Color(0x15E5E5EA)
-                                    )
-                                }
-                            )
-                        )
+                        .background(glassSheenBrush)
                 )
 
-                // Top rim reflection line
+                // Top rim specular highlight
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = if (isDark) {
-                                    listOf(
-                                        Color.Transparent,
-                                        Color(0x38FFFFFF),
-                                        Color.Transparent
-                                    )
-                                } else {
-                                    listOf(
-                                        Color.Transparent,
-                                        Color.White.copy(alpha = 0.90f),
-                                        Color.Transparent
-                                    )
-                                }
-                            )
-                        )
+                        .background(topRimBrush)
                 )
 
-                Row(
+                // Navigation content area
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
-                    items.forEach { item ->
-                        val isSelected = item.route == selectedRoute
+                    val tabCount = items.size.coerceAtLeast(1)
+                    val selectedIndex = items.indexOfFirst { it.route == selectedRoute }.coerceAtLeast(0)
+                    val tabWidth = maxWidth / tabCount
+                    val selectedRectWidth = (tabWidth - 4.dp).coerceAtLeast(48.dp)
+                    val selectedRectHeight = (maxHeight - 4.dp).coerceAtLeast(48.dp)
+                    val targetOffsetX = (tabWidth * selectedIndex) + ((tabWidth - selectedRectWidth) / 2f)
 
-                        val pillSelectedBg by animateColorAsState(
-                            targetValue = if (isSelected) {
-                                activeAccentColor.copy(alpha = if (isDark) 0.20f else 0.14f)
-                            } else {
-                                Color.Transparent
-                            },
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                            label = "navPillBg"
-                        )
+                    val animatedPillOffsetX by animateDpAsState(
+                        targetValue = targetOffsetX,
+                        animationSpec = tween(
+                            durationMillis = 250,
+                            easing = FastOutSlowInEasing
+                        ),
+                        label = "selectedPillOffsetX"
+                    )
 
-                        val itemContentColor by animateColorAsState(
-                            targetValue = if (isSelected) activeAccentColor else inactiveNavColor,
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                            label = "navContentColor"
-                        )
+                    // Smoothly sliding translucent rounded-rectangle highlight behind icon + label
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset(x = animatedPillOffsetX)
+                            .width(selectedRectWidth)
+                            .height(selectedRectHeight),
+                        shape = SelectedNavHighlightShape,
+                        color = selectedHighlightFill,
+                        border = BorderStroke(1.dp, selectedHighlightBorder),
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
+                    ) {}
 
-                        val itemScale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.0f else 0.96f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "navItemScale"
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        items.forEach { item ->
+                            val isSelected = item.route == selectedRoute
 
-                        val itemInteraction = remember { MutableInteractionSource() }
+                            val itemContentColor by animateColorAsState(
+                                targetValue = if (isSelected) SelectedNavContentColor else UnselectedNavContentColor,
+                                animationSpec = tween(
+                                    durationMillis = 250,
+                                    easing = FastOutSlowInEasing
+                                ),
+                                label = "navItemContentColor"
+                            )
 
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(pillSelectedBg)
-                                .clickable(
-                                    interactionSource = itemInteraction,
-                                    indication = null
-                                ) {
-                                    if (!isSelected) {
-                                        VivoHapticFeedback.performTick(context)
+                            val itemInteraction = remember { MutableInteractionSource() }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable(
+                                        interactionSource = itemInteraction,
+                                        indication = null
+                                    ) {
+                                        if (!isSelected) {
+                                            VivoHapticFeedback.performTick(context)
+                                        }
+                                        onSelect(item.route)
                                     }
-                                    onSelect(item.route)
-                                }
-                                .padding(vertical = 4.dp, horizontal = 2.dp)
-                                .testTag(item.testTag),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.graphicsLayer {
-                                    scaleX = itemScale
-                                    scaleY = itemScale
-                                }
+                                    .testTag(item.testTag),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label,
-                                    tint = itemContentColor,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = item.label,
-                                    fontSize = 10.sp,
-                                    lineHeight = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = itemContentColor,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
-                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 1.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                        contentDescription = item.label,
+                                        tint = itemContentColor,
+                                        modifier = Modifier.size(21.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = item.label,
+                                        fontSize = 10.sp,
+                                        lineHeight = 12.sp,
+                                        letterSpacing = (-0.25).sp,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = itemContentColor,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Visible,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }
@@ -682,7 +951,7 @@ fun <T> AppleSegmentedControl(
     val selectedIndex = items.indexOf(selectedItem).coerceAtLeast(0)
 
     val trackColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceTertiaryLight
-    val activePillColor = if (isDark) Color(0xFF3A3A3C) else Color(0xFFFFFFFF)
+    val activePillColor = if (isDark) AppleSurfaceTertiaryDark else AppleSurfaceLight
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -701,9 +970,9 @@ fun <T> AppleSegmentedControl(
 
                 val textColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        if (isDark) Color.White else Color.Black
+                        if (isDark) AppleTextPrimaryDark else AppleTextPrimaryLight
                     } else {
-                        Color(0xFF8E8E93)
+                        if (isDark) AppleTextSecondaryDark else AppleTextSecondaryLight
                     },
                     animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
                     label = "segTextColor"
@@ -751,167 +1020,10 @@ fun <T> AppleSegmentedControl(
 }
 
 /**
- * Exact Apple Dynamic Island Top Capsule (for Live Workout Tracking & Rest Timers).
- * Clean solid pitch black capsule with crisp colored badges.
- */
-@Composable
-fun OriginIslandLiveTopCapsule(
-    isVisible: Boolean,
-    isResting: Boolean,
-    isTimerRunning: Boolean,
-    headlineText: String,
-    subtitleText: String,
-    timerBadgeText: String,
-    accentColor: Color,
-    onToggleTimer: () -> Unit,
-    onAddRest15s: () -> Unit,
-    onSkipRest: () -> Unit,
-    onOpenWorkoutLogger: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(tween(220)) + expandVertically(tween(260)),
-        exit = fadeOut(tween(180)) + shrinkVertically(tween(220)),
-        modifier = modifier
-    ) {
-        val capsuleCorner = if (isExpanded) 20.dp else 999.dp
-        val capsuleShape = RoundedCornerShape(capsuleCorner)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(if (isExpanded) 1f else 0.94f)
-                    .clip(capsuleShape)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { isExpanded = !isExpanded }
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        )
-                    )
-                    .testTag("origin_island_live_capsule"),
-                shape = capsuleShape,
-                color = Color(0xFF000000),
-                border = BorderStroke(1.dp, AppleHealthDarkOutline)
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(accentColor)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = headlineText,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = subtitleText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF8E8E93),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = accentColor.copy(alpha = 0.20f)
-                        ) {
-                            Text(
-                                text = timerBadgeText,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = accentColor,
-                                maxLines = 1,
-                                softWrap = false
-                            )
-                        }
-                    }
-
-                    if (isExpanded) {
-                        HorizontalDivider(color = AppleHealthDarkOutline)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (isResting) {
-                                LiquidGlassPrimaryButton(
-                                    text = "+15s Rest",
-                                    onClick = onAddRest15s,
-                                    accentColor = AppleOverloadOrange,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                LiquidGlassPrimaryButton(
-                                    text = "Skip Rest",
-                                    onClick = onSkipRest,
-                                    accentColor = AppleMoveRed,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            } else {
-                                LiquidGlassPrimaryButton(
-                                    text = if (isTimerRunning) "Pause" else "Resume",
-                                    onClick = onToggleTimer,
-                                    accentColor = if (isTimerRunning) AppleOverloadOrange else AppleExerciseGreen,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            LiquidGlassPrimaryButton(
-                                text = "Logger",
-                                onClick = {
-                                    isExpanded = false
-                                    onOpenWorkoutLogger()
-                                },
-                                accentColor = AppleStandCyan,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
  * Apple iOS Grouped Dropdown Field.
- * Clean solid background with subtle border.
+ * - Uses a uniform 56.dp height closed box across all option counts so side-by-side columns are always the exact same size.
+ * - Always expands downwards directly below the field (never pops upwards over the screen header).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppleDropdownField(
     label: String,
@@ -923,20 +1035,29 @@ fun AppleDropdownField(
     testTag: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var searchQuery by remember(selectedValue) { mutableStateOf(selectedValue) }
+    var searchQuery by remember(expanded) { mutableStateOf("") }
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val isSearchable = options.size > 3
+    val showSearchInsideMenu = options.size > 8
 
-    val filteredOptions = remember(searchQuery, options, selectedValue) {
+    val filteredOptions = remember(searchQuery, options) {
         val q = searchQuery.trim()
-        if (q.isBlank() || q.equals(selectedValue.trim(), ignoreCase = true)) {
+        if (q.isBlank()) {
             options
         } else {
             options.filter { opt ->
                 opt.contains(q, ignoreCase = true) ||
-                (subtitleProvider?.invoke(opt)?.contains(q, ignoreCase = true) == true)
+                    (subtitleProvider?.invoke(opt)?.contains(q, ignoreCase = true) == true)
             }
         }
+    }
+
+    val fieldShape = RoundedCornerShape(AppleRadius.inputField)
+    val triggerBorderColor = if (expanded) {
+        AppleMoveRed
+    } else if (isDark) {
+        AppleNestedCardBorderDark
+    } else {
+        AppleNestedCardBorderLight
     }
 
     Column(
@@ -955,121 +1076,154 @@ fun AppleDropdownField(
             )
         }
 
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier = Modifier.fillMaxWidth()
+        // Uniform 56.dp height closed trigger box so every column in a 2-column row has the exact same size
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clip(fieldShape)
+                .clickable { expanded = !expanded }
+                .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+            shape = fieldShape,
+            color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+            shadowElevation = if (isDark) 0.dp else 1.dp,
+            border = BorderStroke(if (expanded) 1.5.dp else 1.dp, triggerBorderColor),
+            contentColor = MaterialTheme.colorScheme.onSurface
         ) {
-            if (isSearchable) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = {
-                        searchQuery = it
-                        expanded = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(MenuAnchorType.PrimaryEditable)
-                        .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
-                    placeholder = {
-                        Text(
-                            text = selectedValue.ifBlank { "Search or select..." },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(AppleRadius.inputField),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                        unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                        focusedBorderColor = AppleMoveRed,
-                        unfocusedBorderColor = if (isDark) AppleSeparatorDark else AppleOutlineLight
-                    ),
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                    }
-                )
-            } else {
-                Surface(
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(AppleRadius.inputField))
-                        .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
-                    shape = RoundedCornerShape(AppleRadius.inputField),
-                    color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
-                    border = BorderStroke(1.dp, if (isDark) AppleSeparatorDark else AppleOutlineLight),
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = selectedValue,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                        )
-                        Icon(
-                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = label.ifBlank { "Dropdown" },
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = {
-                    expanded = false
-                    searchQuery = selectedValue
-                },
-                modifier = Modifier.heightIn(max = 300.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                filteredOptions.forEach { option ->
-                    val isSelected = option.equals(selectedValue, ignoreCase = true)
-                    val sub = subtitleProvider?.invoke(option)
-                    DropdownMenuItem(
-                        text = {
-                            Column {
+                Text(
+                    text = selectedValue,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = label.ifBlank { "Dropdown" },
+                    tint = if (expanded) AppleMoveRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        // Always opens DOWNWARDS directly below the trigger box
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(tween(180)) + expandVertically(
+                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                expandFrom = Alignment.Top
+            ),
+            exit = fadeOut(tween(140)) + shrinkVertically(
+                animationSpec = tween(180, easing = FastOutSlowInEasing),
+                shrinkTowards = Alignment.Top
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = if (isDark) AppleSurfaceDark else Color(0xFFFFFFFF),
+                shadowElevation = if (isDark) 2.dp else 4.dp,
+                tonalElevation = 0.dp,
+                border = BorderStroke(1.dp, if (isDark) AppleCardBorderDark else Color(0xFFE8E8ED))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                ) {
+                    if (showSearchInsideMenu) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text(
+                                    text = "Search...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            shape = RoundedCornerShape(10.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                                focusedBorderColor = AppleMoveRed,
+                                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    val displayedOptions = if (showSearchInsideMenu && searchQuery.isBlank()) {
+                        filteredOptions.take(12)
+                    } else {
+                        filteredOptions
+                    }
+
+                    displayedOptions.forEachIndexed { index, option ->
+                        val isSelected = option.equals(selectedValue, ignoreCase = true)
+                        val sub = subtitleProvider?.invoke(option)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onOptionSelected(option)
+                                    expanded = false
+                                    searchQuery = ""
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
                                 Text(
                                     text = option,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) AppleMoveRed else MaterialTheme.colorScheme.onSurface
+                                    color = if (isSelected) AppleMoveRed else MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 if (!sub.isNullOrBlank()) {
                                     Text(
                                         text = sub,
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
-                        },
-                        trailingIcon = {
                             if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
@@ -1078,13 +1232,16 @@ fun AppleDropdownField(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                        },
-                        onClick = {
-                            searchQuery = option
-                            onOptionSelected(option)
-                            expanded = false
                         }
-                    )
+
+                        if (index < displayedOptions.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 14.dp),
+                                thickness = 0.5.dp,
+                                color = if (isDark) AppleSeparatorDark else AppleSeparatorLight
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1154,10 +1311,11 @@ fun AppleLiquidGlassTextField(
                 focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
                 unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
                 focusedBorderColor = accentColor,
-                unfocusedBorderColor = if (isDark) AppleSeparatorDark else AppleOutlineLight
+                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
             ),
             modifier = Modifier
                 .fillMaxWidth()
+                .then(if (singleLine) Modifier.height(56.dp) else Modifier.heightIn(min = 56.dp))
                 .then(fieldModifier)
         )
     }
@@ -1198,11 +1356,13 @@ fun AppleMultiSelectExerciseDropdown(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(AppleRadius.nestedCard))
                 .clickable { expanded = !expanded }
                 .testTag("routine_exercises_dropdown_trigger"),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(AppleRadius.nestedCard),
             color = if (isDark) AppleHealthDarkContainer else AppleHealthLightContainer,
+            shadowElevation = if (isDark) 0.dp else 1.dp,
+            border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight),
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Row(
@@ -1244,9 +1404,10 @@ fun AppleMultiSelectExerciseDropdown(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = if (isDark) AppleHealthDarkSurface else AppleHealthLightSurface,
-                border = BorderStroke(1.dp, AppleHealthDarkOutline)
+                shape = RoundedCornerShape(AppleRadius.inputField),
+                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                shadowElevation = if (isDark) 0.dp else 1.dp,
+                border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight)
             ) {
                 Column(
                     modifier = Modifier

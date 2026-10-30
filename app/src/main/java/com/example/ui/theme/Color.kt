@@ -7,9 +7,11 @@ import androidx.compose.ui.graphics.Color
 // ==========================================
 val AppleBgLight = Color(0xFFF2F2F7)
 val AppleSurfaceLight = Color(0xFFFFFFFF)
-val AppleSurfaceSecondaryLight = Color(0xFFF9F9FB)
+val AppleSurfaceSecondaryLight = Color(0xFFFAFAFC)
 val AppleSurfaceTertiaryLight = Color(0xFFE5E5EA)
-val AppleSeparatorLight = Color(0xFFC6C6C8)
+val AppleCardBorderLight = Color(0xFFE8E8ED)
+val AppleNestedCardBorderLight = Color(0xFFEBEBF0)
+val AppleSeparatorLight = Color(0xFFD1D1D6)
 val AppleOutlineLight = Color(0xFFD1D1D6)
 
 // Typography Colors Light
@@ -27,6 +29,8 @@ val AppleBgDark = Color(0xFF000000)
 val AppleSurfaceDark = Color(0xFF1C1C1E)
 val AppleSurfaceSecondaryDark = Color(0xFF2C2C2E)
 val AppleSurfaceTertiaryDark = Color(0xFF3A3A3C)
+val AppleCardBorderDark = Color(0xFF38383A)
+val AppleNestedCardBorderDark = Color(0xFF38383A)
 val AppleSeparatorDark = Color(0xFF38383A)
 val AppleOutlineDark = Color(0xFF38383A)
 

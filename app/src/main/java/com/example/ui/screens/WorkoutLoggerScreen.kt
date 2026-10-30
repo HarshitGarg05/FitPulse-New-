@@ -97,12 +97,27 @@ import com.example.ui.components.LiquidGlassCard
 import com.example.ui.components.LiquidGlassPrimaryButton
 import com.example.ui.components.LiquidGlassSecondaryButton
 import com.example.ui.components.LiveWorkoutSetVolumeGraph
+import androidx.compose.ui.graphics.luminance
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
+import com.example.ui.theme.AppleRadius
 import com.example.ui.theme.AppleExerciseGreen
 import com.example.ui.theme.AppleMindPurple
 import com.example.ui.theme.AppleMoveRed
 import com.example.ui.theme.AppleOverloadOrange
+import com.example.ui.theme.AppleSeparatorDark
+import com.example.ui.theme.AppleSeparatorLight
 import com.example.ui.theme.AppleStandBlue
 import com.example.ui.theme.AppleStandCyan
+import com.example.ui.theme.AppleStateError
+import com.example.ui.theme.AppleStateSuccess
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSurfaceTertiaryDark
+import com.example.ui.theme.AppleSurfaceTertiaryLight
+import com.example.ui.theme.AppleSystemBlue
 import com.example.ui.viewmodel.ActiveWorkoutEditorState
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
@@ -137,17 +152,26 @@ fun WorkoutLoggerScreen(
             .sortedBy { it.value.firstOrNull()?.exerciseOrder ?: 0 }
             .map { it.key to it.value.sortedBy { s -> s.setNumber } }
     }
+    val setsBySessionId = remember(state.allSets) {
+        state.allSets.groupBy { it.sessionId }
+    }
 
+    val isDarkRoot = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val rootCanvasBg = if (isDarkRoot) Color(0xFF000000) else Color(0xFFF2F2F7)
+
+    // LEVEL 1: Main screen background (#F2F2F7 in Light Mode)
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(rootCanvasBg)
             .testTag("workout_logger_screen"),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 720.dp),
+                .widthIn(max = 720.dp)
+                .background(rootCanvasBg),
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
@@ -156,7 +180,7 @@ fun WorkoutLoggerScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
+            item(key = "workout_logger_header", contentType = "header") {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     AppleLargePageHeader(
                         overlineText = "WORKOUT PLANNER & LIVE TRACKER",
@@ -166,18 +190,10 @@ fun WorkoutLoggerScreen(
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
                                 color = if (activeWorkout.isWorkoutActive) {
-                                    AppleExerciseGreen.copy(alpha = 0.16f)
+                                    AppleExerciseGreen.copy(alpha = 0.14f)
                                 } else {
-                                    AppleStandBlue.copy(alpha = 0.16f)
-                                },
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (activeWorkout.isWorkoutActive) {
-                                        AppleExerciseGreen.copy(alpha = 0.45f)
-                                    } else {
-                                        AppleStandBlue.copy(alpha = 0.40f)
-                                    }
-                                )
+                                    AppleSystemBlue.copy(alpha = 0.12f)
+                                }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -223,7 +239,7 @@ fun WorkoutLoggerScreen(
 
             // Live Rest Countdown Banner (Visible whenever Rest Timer is running)
             if (activeWorkout.isRestTimerRunning) {
-                item {
+                item(key = "rest_timer_banner", contentType = "banner") {
                     RestTimerBanner(
                         secondsRemaining = activeWorkout.restTimerRemainingSeconds,
                         totalSeconds = activeWorkout.restTimerTotalSeconds,
@@ -246,7 +262,7 @@ fun WorkoutLoggerScreen(
                     if (!activeWorkout.isWorkoutActive) {
                         // STAGE 1: BLANK WORKOUT PLAN BUILDER
                         // User starts with a blank canvas to build their workout plan, save it for next time, or start the live workout!
-                        item {
+                        item(key = "blank_workout_plan_builder", contentType = "plan_builder_card") {
                             BlankWorkoutPlanBuilderCard(
                                 editor = activeWorkout,
                                 savedPlans = state.routines,
@@ -265,7 +281,7 @@ fun WorkoutLoggerScreen(
                         }
 
                         if (groupedExercises.isNotEmpty()) {
-                            item {
+                            item(key = "planned_exercises_header", contentType = "section_header") {
                                 AppleSectionHeader(
                                     title = "Exercises in Your Plan (${groupedExercises.size})",
                                     subtitle = "Save this plan for next time or tap Start Workout below when ready",
@@ -276,7 +292,11 @@ fun WorkoutLoggerScreen(
                                 )
                             }
 
-                            items(groupedExercises, key = { "planned_${it.first}" }) { (exerciseName, exerciseSets) ->
+                            items(
+                                items = groupedExercises,
+                                key = { "planned_${it.first}" },
+                                contentType = { "planned_exercise_card" }
+                            ) { (exerciseName, exerciseSets) ->
                                 val idx = groupedExercises.indexOfFirst { it.first == exerciseName }
                                 val isExpanded = !collapsedPlannedExercises.contains(exerciseName)
                                 PlannedExerciseBuilderCard(
@@ -307,11 +327,9 @@ fun WorkoutLoggerScreen(
                                 )
                             }
 
-                            item {
+                            item(key = "planned_action_buttons", contentType = "action_buttons") {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(IntrinsicSize.Max),
+                                    modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     LiquidGlassSecondaryButton(
@@ -321,7 +339,7 @@ fun WorkoutLoggerScreen(
                                         accentColor = AppleMindPurple,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .fillMaxHeight(),
+                                            .height(46.dp),
                                         testTag = "save_plan_for_next_time_button"
                                     )
                                     LiquidGlassPrimaryButton(
@@ -331,7 +349,7 @@ fun WorkoutLoggerScreen(
                                         accentColor = AppleExerciseGreen,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .fillMaxHeight(),
+                                            .height(46.dp),
                                         testTag = "start_planned_workout_button"
                                     )
                                 }
@@ -340,7 +358,7 @@ fun WorkoutLoggerScreen(
                     } else {
                         // STAGE 2: LIVE WORKOUT EXECUTION
                         // Clicking any exercise in the plan registers it as the active exercise and starts the live timer!
-                        item {
+                        item(key = "live_workout_telemetry_header", contentType = "telemetry_card") {
                             LiveWorkoutTelemetryHeaderCard(
                                 editor = activeWorkout,
                                 unitLabel = state.unitLabel,
@@ -359,7 +377,7 @@ fun WorkoutLoggerScreen(
 
                         // Real-Time Set Volume Graph inside Active Workout
                         if (activeWorkout.sets.any { it.status == "COMPLETED" }) {
-                            item {
+                            item(key = "live_workout_set_volume_graph", contentType = "chart_card") {
                                 LiquidGlassCard(accentTint = AppleExerciseGreen) {
                                     LiveWorkoutSetVolumeGraph(
                                         sets = activeWorkout.sets,
@@ -370,7 +388,7 @@ fun WorkoutLoggerScreen(
                             }
                         }
 
-                        item {
+                        item(key = "live_exercises_header", contentType = "section_header") {
                             AppleSectionHeader(
                                 title = "Tap an Exercise to Register & Start Timer",
                                 subtitle = if (activeWorkout.activeExerciseName != null) {
@@ -385,7 +403,11 @@ fun WorkoutLoggerScreen(
                             )
                         }
 
-                        items(groupedExercises, key = { "live_${it.first}" }) { (exerciseName, exerciseSets) ->
+                        items(
+                            items = groupedExercises,
+                            key = { "live_${it.first}" },
+                            contentType = { "live_exercise_card" }
+                        ) { (exerciseName, exerciseSets) ->
                             val isExerciseActive = activeWorkout.activeExerciseName.equals(exerciseName, ignoreCase = true)
                             val exerciseSeconds = if (isExerciseActive) {
                                 activeWorkout.activeExerciseElapsedSeconds
@@ -452,11 +474,9 @@ fun WorkoutLoggerScreen(
                             )
                         }
 
-                        item {
+                        item(key = "live_action_buttons", contentType = "action_buttons") {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Max),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 LiquidGlassSecondaryButton(
@@ -466,7 +486,7 @@ fun WorkoutLoggerScreen(
                                     accentColor = AppleMindPurple,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight()
+                                        .height(46.dp)
                                 )
                                 LiquidGlassPrimaryButton(
                                     text = "Finish & Save Workout",
@@ -475,7 +495,7 @@ fun WorkoutLoggerScreen(
                                     accentColor = AppleExerciseGreen,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
+                                        .height(46.dp),
                                     testTag = "finish_and_save_workout_button"
                                 )
                             }
@@ -485,7 +505,7 @@ fun WorkoutLoggerScreen(
 
                 WorkoutTabSection.ROUTINES -> {
                     // Fixes Image 2: Single-line properly aligned "Create Routine" button with weighted title
-                    item {
+                    item(key = "routines_header", contentType = "section_header") {
                         AppleSectionHeader(
                             title = "Saved Workout Plans",
                             subtitle = "Reusable plans you saved for future sessions",
@@ -501,7 +521,7 @@ fun WorkoutLoggerScreen(
                     }
 
                     if (state.routines.isEmpty()) {
-                        item {
+                        item(key = "routines_empty", contentType = "empty_card") {
                             LiquidGlassCard(accentTint = AppleStandBlue) {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
@@ -518,7 +538,11 @@ fun WorkoutLoggerScreen(
                             }
                         }
                     } else {
-                        items(state.routines, key = { it.id }) { routine ->
+                        items(
+                            items = state.routines,
+                            key = { "routine_${it.id}" },
+                            contentType = { "routine_item_card" }
+                        ) { routine ->
                             RoutineItemCard(
                                 routine = routine,
                                 onLoadIntoBuilder = {
@@ -540,7 +564,7 @@ fun WorkoutLoggerScreen(
                 }
 
                 WorkoutTabSection.HISTORY -> {
-                    item {
+                    item(key = "history_header", contentType = "section_header") {
                         AppleSectionHeader(
                             title = "Completed Workout History",
                             subtitle = "${state.completedSessions.size} sessions stored on device"
@@ -548,7 +572,7 @@ fun WorkoutLoggerScreen(
                     }
 
                     if (state.completedSessions.isEmpty()) {
-                        item {
+                        item(key = "history_empty", contentType = "empty_card") {
                             LiquidGlassCard(accentTint = AppleMindPurple) {
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
@@ -565,10 +589,12 @@ fun WorkoutLoggerScreen(
                             }
                         }
                     } else {
-                        items(state.completedSessions, key = { it.id }) { workout ->
-                            val sessionSets = remember(state.allSets, workout.id) {
-                                state.allSets.filter { it.sessionId == workout.id }
-                            }
+                        items(
+                            items = state.completedSessions,
+                            key = { "history_${it.id}" },
+                            contentType = { "historical_workout_card" }
+                        ) { workout ->
+                            val sessionSets = setsBySessionId[workout.id].orEmpty()
                             HistoricalWorkoutCard(
                                 workout = workout,
                                 sets = sessionSets,
@@ -737,7 +763,8 @@ private fun BlankWorkoutPlanBuilderCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Top
             ) {
                 AppleDropdownField(
                     label = "Training Split",
@@ -850,15 +877,10 @@ private fun PlannedExerciseBuilderCard(
                         onClick = onToggleExpand,
                         shape = CircleShape,
                         color = if (isExpanded) {
-                            AppleStandBlue.copy(alpha = 0.16f)
+                            AppleSystemBlue.copy(alpha = 0.14f)
                         } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                            MaterialTheme.colorScheme.surfaceVariant
                         },
-                        border = BorderStroke(
-                            1.dp,
-                            if (isExpanded) AppleStandBlue.copy(alpha = 0.45f)
-                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                        ),
                         modifier = Modifier
                             .size(36.dp)
                             .testTag("plan_exercise_expand_toggle_${exerciseName}")
@@ -867,7 +889,7 @@ private fun PlannedExerciseBuilderCard(
                             Icon(
                                 imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                 contentDescription = if (isExpanded) "Shrink Exercise Card" else "Expand Exercise Card",
-                                tint = AppleStandBlue,
+                                tint = AppleSystemBlue,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -1073,11 +1095,16 @@ private fun LiveWorkoutTelemetryHeaderCard(
                 )
             }
 
-            // Active Exercise & Timer Controls Bar
+            // Active Exercise & Timer Controls Bar (Level 3 Nested Card)
+            val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, AppleStandBlue.copy(alpha = 0.35f))
+                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                shadowElevation = if (isDark) 0.dp else 1.dp,
+                border = BorderStroke(
+                    width = if (isDark) 0.5.dp else 1.dp,
+                    color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                )
             ) {
                 Row(
                     modifier = Modifier
@@ -1133,11 +1160,10 @@ private fun LiveWorkoutTelemetryHeaderCard(
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(AppleRadius.smallControl))
                                 .clickable { onStartRestTimer(secs) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = AppleStandBlue.copy(alpha = 0.14f),
-                            border = BorderStroke(1.dp, AppleStandBlue.copy(alpha = 0.4f))
+                            shape = RoundedCornerShape(AppleRadius.smallControl),
+                            color = AppleSystemBlue.copy(alpha = 0.12f)
                         ) {
                             Box(
                                 modifier = Modifier.padding(vertical = 8.dp),
@@ -1147,7 +1173,7 @@ private fun LiveWorkoutTelemetryHeaderCard(
                                     text = "Rest ${secs}s",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleStandBlue,
+                                    color = AppleSystemBlue,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -1278,15 +1304,10 @@ private fun LiveInteractiveExerciseCard(
                         onClick = onToggleExpand,
                         shape = CircleShape,
                         color = if (isExerciseActive) {
-                            AppleExerciseGreen.copy(alpha = 0.18f)
+                            AppleExerciseGreen.copy(alpha = 0.16f)
                         } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                            MaterialTheme.colorScheme.surfaceVariant
                         },
-                        border = BorderStroke(
-                            1.dp,
-                            if (isExerciseActive) AppleExerciseGreen.copy(alpha = 0.5f)
-                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                        ),
                         modifier = Modifier
                             .size(42.dp)
                             .testTag("exercise_expand_toggle_${exerciseName}")
@@ -1319,7 +1340,10 @@ private fun LiveInteractiveExerciseCard(
                 ) + fadeOut()
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
 
             sets.forEach { setEntry ->
                 val isCompleted = setEntry.status == "COMPLETED"
@@ -1331,17 +1355,26 @@ private fun LiveInteractiveExerciseCard(
                     mutableStateOf(setEntry.reps.toString())
                 }
 
+                val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(AppleRadius.nestedCard),
                     color = if (isCompleted) {
-                        AppleExerciseGreen.copy(alpha = 0.14f)
+                        AppleStateSuccess.copy(alpha = 0.12f)
+                    } else if (isDark) {
+                        AppleSurfaceSecondaryDark
                     } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+                        AppleSurfaceSecondaryLight
                     },
+                    shadowElevation = if (isDark || isCompleted) 0.dp else 1.dp,
                     border = BorderStroke(
-                        1.dp,
-                        if (isCompleted) AppleExerciseGreen.copy(alpha = 0.45f)
-                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                        width = if (isDark) 0.5.dp else 1.dp,
+                        color = if (isCompleted) {
+                            AppleStateSuccess.copy(alpha = 0.35f)
+                        } else if (isDark) {
+                            AppleNestedCardBorderDark
+                        } else {
+                            AppleNestedCardBorderLight
+                        }
                     )
                 ) {
                     Column(
@@ -1590,19 +1623,19 @@ private fun RestTimerBanner(
                         val isSelected = (sec == activeSelectedSeconds)
                         Surface(
                             onClick = { onChangeRestDuration(sec) },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) AppleOverloadOrange.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.08f),
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) AppleOverloadOrange else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
-                            )
+                            shape = RoundedCornerShape(AppleRadius.smallControl),
+                            color = if (isSelected) {
+                                AppleOverloadOrange.copy(alpha = 0.20f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
                         ) {
                             Text(
                                 text = "${sec}s",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) AppleOverloadOrange else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -1848,6 +1881,8 @@ private fun HistoricalWorkoutDetailDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(AppleRadius.bottomSheet),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
@@ -1909,9 +1944,15 @@ private fun HistoricalWorkoutDetailDialog(
                 // Volume Graph
                 if (draftSetsForGraph.isNotEmpty()) {
                     item {
+                        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            shape = RoundedCornerShape(AppleRadius.nestedCard),
+                            color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                            shadowElevation = if (isDark) 0.dp else 1.dp,
+                            border = BorderStroke(
+                                width = if (isDark) 0.5.dp else 1.dp,
+                                color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                            )
                         ) {
                             Box(modifier = Modifier.padding(12.dp)) {
                                 LiveWorkoutSetVolumeGraph(
@@ -1935,12 +1976,17 @@ private fun HistoricalWorkoutDetailDialog(
                 }
 
                 items(groupedSets.entries.toList(), key = { it.key }) { (exerciseName, exSets) ->
+                    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
                     val topSet = exSets.maxByOrNull { it.weightKg }
                     val exerciseVolume = exSets.sumOf { (it.weightKg * it.reps).toDouble() }.toFloat()
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+                        shape = RoundedCornerShape(AppleRadius.nestedCard),
+                        color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                        shadowElevation = if (isDark) 0.dp else 1.dp,
+                        border = BorderStroke(
+                            width = if (isDark) 0.5.dp else 1.dp,
+                            color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                        )
                     ) {
                         Column(
                             modifier = Modifier
@@ -2064,6 +2110,8 @@ private fun AddExerciseToWorkoutDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(AppleRadius.bottomSheet),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = "Add Exercise to Workout Plan",
@@ -2206,6 +2254,8 @@ private fun RoutineEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(AppleRadius.bottomSheet),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = if (existingRoutine != null) "Edit Workout Plan" else "Create Saved Workout Plan",

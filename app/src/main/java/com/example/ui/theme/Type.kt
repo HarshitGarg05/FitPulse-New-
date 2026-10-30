@@ -94,34 +94,38 @@ object AppleTypeScale {
         lineHeight = 13.sp
     )
 
-    // Metric Typography Scale
+    // Metric Typography Scale (Tabular Numbers enabled for precision alignment)
     val HeroMetric = TextStyle(
         fontFamily = AppleSfFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 44.sp,
         lineHeight = 48.sp,
-        letterSpacing = (-0.8).sp
+        letterSpacing = (-0.8).sp,
+        fontFeatureSettings = "tnum"
     )
     val LargeMetric = TextStyle(
         fontFamily = AppleSfFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 32.sp,
         lineHeight = 38.sp,
-        letterSpacing = (-0.5).sp
+        letterSpacing = (-0.5).sp,
+        fontFeatureSettings = "tnum"
     )
     val MediumMetric = TextStyle(
         fontFamily = AppleSfFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 30.sp,
-        letterSpacing = (-0.3).sp
+        letterSpacing = (-0.3).sp,
+        fontFeatureSettings = "tnum"
     )
     val SmallMetric = TextStyle(
         fontFamily = AppleSfFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 17.sp,
         lineHeight = 22.sp,
-        letterSpacing = (-0.2).sp
+        letterSpacing = (-0.2).sp,
+        fontFeatureSettings = "tnum"
     )
 }
 

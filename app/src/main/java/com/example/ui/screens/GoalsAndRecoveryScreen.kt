@@ -66,14 +66,42 @@ import com.example.ui.components.LiquidGlassCard
 import com.example.ui.components.LiquidGlassPrimaryButton
 import com.example.ui.components.ProgressionChartMetric
 import com.example.ui.components.StrengthStandardGaugeBar
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.graphics.luminance
+import com.example.ui.theme.AppleCalories
+import com.example.ui.theme.AppleCardBorderDark
+import com.example.ui.theme.AppleCardBorderLight
+import com.example.ui.theme.AppleExercise
 import com.example.ui.theme.AppleExerciseGreen
 import com.example.ui.theme.AppleMindPurple
+import com.example.ui.theme.AppleMove
 import com.example.ui.theme.AppleMoveRed
+import com.example.ui.theme.AppleMuscleGroups
+import com.example.ui.theme.AppleNestedCardBorderDark
+import com.example.ui.theme.AppleNestedCardBorderLight
 import com.example.ui.theme.AppleOverloadOrange
+import com.example.ui.theme.ApplePersonalRecords
+import com.example.ui.theme.AppleRadius
+import com.example.ui.theme.AppleRecovery
+import com.example.ui.theme.AppleSeparatorDark
+import com.example.ui.theme.AppleSeparatorLight
+import com.example.ui.theme.AppleStand
 import com.example.ui.theme.AppleStandBlue
+import com.example.ui.theme.AppleStateError
+import com.example.ui.theme.AppleStateSuccess
+import com.example.ui.theme.AppleStateWarning
+import com.example.ui.theme.AppleStrengthProgression
+import com.example.ui.theme.AppleSurfaceSecondaryDark
+import com.example.ui.theme.AppleSurfaceSecondaryLight
+import com.example.ui.theme.AppleSurfaceTertiaryDark
+import com.example.ui.theme.AppleSurfaceTertiaryLight
+import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleTextInverseLight
+import com.example.ui.theme.AppleTypeScale
 import com.example.ui.viewmodel.FitPulseUiState
 import com.example.ui.viewmodel.FitnessViewModel
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun GoalsAndRecoveryScreen(
@@ -87,6 +115,9 @@ fun GoalsAndRecoveryScreen(
 
     val reports = state.dashboardAnalytics.overloadReports
     val selectedReport = state.selectedExerciseReport ?: reports.firstOrNull()
+    val reportsByName = remember(reports) {
+        reports.associateBy { it.exerciseName.lowercase(Locale.US) }
+    }
 
     val muscleGroups = remember(state.allExercises) {
         listOf("All") + state.allExercises.map { it.muscleGroup }.distinct().sorted()
@@ -95,15 +126,21 @@ fun GoalsAndRecoveryScreen(
         listOf("All") + state.allExercises.map { it.equipment }.distinct().sorted()
     }
 
+    val isDarkRoot = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val rootCanvasBg = if (isDarkRoot) Color(0xFF000000) else Color(0xFFF2F2F7)
+
+    // LEVEL 1: Main screen background (#F2F2F7 in Light Mode)
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(rootCanvasBg)
             .testTag("exercises_and_overload_screen"),
         contentAlignment = Alignment.TopCenter
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .background(rootCanvasBg)
                 .widthIn(max = 720.dp),
             contentPadding = PaddingValues(
                 start = 20.dp,
@@ -113,11 +150,11 @@ fun GoalsAndRecoveryScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
+            item(key = "goals_header", contentType = "header") {
                 AppleLargePageHeader(
-                    overlineText = "EXERCISE LIBRARY & PROGRESSIVE OVERLOAD",
+                    overlineText = "GOALS, RECOVERY & OVERLOAD",
                     title = "Exercises",
-                    accentColor = AppleOverloadOrange,
+                    accentColor = AppleStrengthProgression,
                     actionLabel = "New Exercise",
                     actionIcon = Icons.Default.Add,
                     actionTestTag = "new_custom_exercise_button",
@@ -127,9 +164,8 @@ fun GoalsAndRecoveryScreen(
                     },
                     trailingBadge = {
                         Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = AppleExerciseGreen.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, AppleExerciseGreen.copy(alpha = 0.40f))
+                            shape = RoundedCornerShape(AppleRadius.pill),
+                            color = AppleStrengthProgression.copy(alpha = 0.14f)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -140,13 +176,13 @@ fun GoalsAndRecoveryScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(AppleExerciseGreen)
+                                        .background(AppleStrengthProgression)
                                 )
                                 Text(
                                     text = "${state.allExercises.size} Exercises",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AppleExerciseGreen,
+                                    style = AppleTypeScale.Caption1,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = AppleStrengthProgression,
                                     maxLines = 1,
                                     softWrap = false
                                 )
@@ -156,9 +192,14 @@ fun GoalsAndRecoveryScreen(
                 )
             }
 
-            // 1. Progressive Overload Inspector Card (Fixes Images 4 & 5 & Est. 1RM Equal Height)
+            // 0. Apple Health Recovery, Readiness & Active Goals Summary Card
+            item(key = "recovery_and_goals_overview", contentType = "overview_card") {
+                RecoveryAndGoalsOverviewCard(state = state)
+            }
+
+            // 1. Progressive Overload Inspector Card
             if (selectedReport != null) {
-                item {
+                item(key = "progressive_overload_detail", contentType = "inspector_card") {
                     ProgressiveOverloadDetailCard(
                         allReports = reports,
                         report = selectedReport,
@@ -176,7 +217,7 @@ fun GoalsAndRecoveryScreen(
             }
 
             // 2. Search & Dropdown Filter Bar (Fixes Image 3: Uses Dropdowns instead of clipped chips)
-            item {
+            item(key = "exercise_filter_bar", contentType = "filter_card") {
                 LiquidGlassCard(accentTint = AppleStandBlue) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
@@ -198,7 +239,8 @@ fun GoalsAndRecoveryScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
                         ) {
                             AppleDropdownField(
                                 label = "Muscle Group",
@@ -223,10 +265,12 @@ fun GoalsAndRecoveryScreen(
             }
 
             // 3. Exercise Catalog List with Individual Performance Summary
-            items(state.filteredExercises, key = { it.id }) { exercise ->
-                val report = reports.firstOrNull {
-                    it.exerciseName.equals(exercise.name, ignoreCase = true)
-                }
+            items(
+                items = state.filteredExercises,
+                key = { it.id },
+                contentType = { "exercise_library_card" }
+            ) { exercise ->
+                val report = reportsByName[exercise.name.lowercase(Locale.US)]
                 val isSelected = selectedReport?.exerciseName.equals(exercise.name, ignoreCase = true)
 
                 ExerciseLibraryCard(
@@ -281,6 +325,203 @@ fun GoalsAndRecoveryScreen(
 }
 
 @Composable
+private fun RecoveryAndGoalsOverviewCard(
+    state: FitPulseUiState
+) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val nestedBg = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight
+    val nestedBorder = BorderStroke(
+        width = if (isDark) 0.5.dp else 1.dp,
+        color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+    )
+    val trackColor = if (isDark) Color(0xFF3A3A3C) else AppleSurfaceTertiaryLight
+
+    val weeklyVisits = state.attendanceOverview.weeklyVisitDays
+    val weeklyGoal = state.attendanceOverview.weeklyGoalDays.coerceAtLeast(1)
+    val setsCompleted = state.dashboardAnalytics.periodCompletedSets
+    val setsTarget = (weeklyGoal * 12).coerceAtLeast(12)
+    val prCount = state.dashboardAnalytics.personalRecords.size
+
+    // Calculate a realistic readiness score (0–100) from weekly workload balance
+    val workloadRatio = setsCompleted.toFloat() / setsTarget.toFloat()
+    val readinessScore = when {
+        setsCompleted == 0 -> 94
+        workloadRatio <= 0.85f -> 90
+        workloadRatio <= 1.15f -> 82
+        else -> 72
+    }
+    val readinessLabel = when {
+        readinessScore >= 85 -> "Optimal Readiness"
+        readinessScore >= 75 -> "Balanced Recovery"
+        else -> "Active Recovery Advised"
+    }
+    val readinessAccent = when {
+        readinessScore >= 85 -> AppleStateSuccess
+        readinessScore >= 75 -> AppleRecovery
+        else -> AppleStateWarning
+    }
+
+    LiquidGlassCard(accentTint = AppleRecovery) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "RECOVERY & READINESS",
+                        style = AppleTypeScale.Caption1,
+                        fontWeight = FontWeight.Bold,
+                        color = AppleRecovery
+                    )
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "$readinessScore%",
+                            style = AppleTypeScale.LargeMetric,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Readiness Index",
+                            style = AppleTypeScale.Subheadline,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(AppleRadius.pill),
+                    color = readinessAccent.copy(alpha = 0.14f)
+                ) {
+                    Text(
+                        text = readinessLabel,
+                        style = AppleTypeScale.Caption1,
+                        fontWeight = FontWeight.Bold,
+                        color = readinessAccent,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+
+            // Level-3 Nested Surface for Active Goal, Completed Goal & Upcoming Target Progress Bars
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                color = nestedBg,
+                shadowElevation = if (isDark) 0.dp else 1.dp,
+                border = nestedBorder
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Active Goal: Weekly Attendance
+                    val attendanceProgress = (weeklyVisits.toFloat() / weeklyGoal.toFloat()).coerceIn(0f, 1f)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (weeklyVisits >= weeklyGoal) "Completed Goal • Weekly Gym Days" else "Active Goal • Weekly Gym Days",
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "$weeklyVisits/$weeklyGoal days",
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.Bold,
+                                color = if (weeklyVisits >= weeklyGoal) AppleStateSuccess else AppleMove
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { attendanceProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(AppleRadius.pill)),
+                            color = if (weeklyVisits >= weeklyGoal) AppleStateSuccess else AppleMove,
+                            trackColor = trackColor
+                        )
+                    }
+
+                    // Active Goal: Weekly Training Sets
+                    val setsProgress = (setsCompleted.toFloat() / setsTarget.toFloat()).coerceIn(0f, 1f)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Active Target • Training Volume Sets",
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "$setsCompleted/$setsTarget sets",
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleExercise
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { setsProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(AppleRadius.pill)),
+                            color = AppleExercise,
+                            trackColor = trackColor
+                        )
+                    }
+
+                    // Upcoming Milestone: Personal Records
+                    val nextPrTarget = ((prCount / 5) + 1) * 5
+                    val prProgress = (prCount.toFloat() / nextPrTarget.toFloat()).coerceIn(0.06f, 1f)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Upcoming Milestone • Verified PRs",
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "$prCount/$nextPrTarget PRs",
+                                style = AppleTypeScale.Footnote,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleStrengthProgression
+                            )
+                        }
+                        LinearProgressIndicator(
+                            progress = { prProgress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(7.dp)
+                                .clip(RoundedCornerShape(AppleRadius.pill)),
+                            color = AppleStrengthProgression,
+                            trackColor = trackColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProgressiveOverloadDetailCard(
     allReports: List<ExerciseProgressionReport>,
     report: ExerciseProgressionReport,
@@ -294,13 +535,13 @@ private fun ProgressiveOverloadDetailCard(
     onSelectExercise: (String) -> Unit,
     onSelectMetric: (ProgressionChartMetric) -> Unit
 ) {
-    val hasLoggedSessions = report.totalSessionsLogged > 0
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val displayWeightKg = report.personalRecordWeightKg
     val displayReps = report.personalRecordReps
     val displayVolumeKg = report.personalRecordVolumeKg
     val display1RmKg = report.personalRecordOneRepMaxKg
 
-    LiquidGlassCard(accentTint = AppleOverloadOrange) {
+    LiquidGlassCard(accentTint = AppleStrengthProgression) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -315,26 +556,26 @@ private fun ProgressiveOverloadDetailCard(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                             contentDescription = null,
-                            tint = AppleOverloadOrange,
+                            tint = AppleStrengthProgression,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "PROGRESSIVE OVERLOAD TRACKER",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = AppleTypeScale.Caption1,
                             fontWeight = FontWeight.Bold,
-                            color = AppleOverloadOrange
+                            color = AppleStrengthProgression
                         )
                     }
                     Text(
                         text = report.exerciseName,
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = AppleTypeScale.Title2,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${report.muscleGroup} • ${report.equipment} • ${report.totalSessionsLogged} ${if (report.totalSessionsLogged == 1) "session" else "sessions"} logged",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = AppleTypeScale.Footnote,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -359,10 +600,15 @@ private fun ProgressiveOverloadDetailCard(
                 }
             )
 
-            // Comparison / Prescription Banner
+            // Level-3 Nested Comparison / Prescription Banner
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+                shape = RoundedCornerShape(AppleRadius.nestedCard),
+                color = if (isDark) AppleSurfaceSecondaryDark else AppleSurfaceSecondaryLight,
+                shadowElevation = if (isDark) 0.dp else 1.dp,
+                border = BorderStroke(
+                    width = if (isDark) 0.5.dp else 1.dp,
+                    color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
+                )
             ) {
                 Column(
                     modifier = Modifier
@@ -372,65 +618,62 @@ private fun ProgressiveOverloadDetailCard(
                 ) {
                     Text(
                         text = report.overloadHeadline,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
+                        style = AppleTypeScale.Subheadline,
+                        fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = report.overloadComparisonDetail,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = AppleTypeScale.Footnote,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Equal-Height 4-Metric Row (Fixes Est. 1RM box being shorter than the others!)
+            // Equal-Height 4-Metric Row (single-pass height measurement)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Max),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 EqualHeightMetricMiniBox(
                     label = "Best Load",
                     value = formatWeight(displayWeightKg),
-                    accent = AppleMoveRed,
+                    accent = AppleMove,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .height(68.dp)
                 )
                 EqualHeightMetricMiniBox(
                     label = "Best Reps",
                     value = "$displayReps reps",
-                    accent = AppleStandBlue,
+                    accent = AppleStand,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .height(68.dp)
                 )
                 EqualHeightMetricMiniBox(
                     label = "Peak Vol",
                     value = formatVolume(displayVolumeKg),
-                    accent = AppleExerciseGreen,
+                    accent = AppleExercise,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .height(68.dp)
                 )
                 EqualHeightMetricMiniBox(
                     label = "Est. 1RM",
                     value = formatWeight(display1RmKg),
-                    accent = AppleMindPurple,
+                    accent = AppleStrengthProgression,
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .height(68.dp)
                 )
             }
 
-            // 4-Tab Segmented Control that fits all 4 metrics cleanly without cutting off on the right
             AppleSegmentedControl(
                 items = ProgressionChartMetric.entries,
                 selectedItem = selectedMetric,
                 onItemSelected = onSelectMetric,
                 labelProvider = { it.shortLabel },
-                accentColor = AppleOverloadOrange
+                accentColor = AppleStrengthProgression
             )
 
             ExerciseProgressionChart(
@@ -442,7 +685,7 @@ private fun ProgressiveOverloadDetailCard(
                 recommendedReps = report.recommendedTargetReps,
                 recommendedVolumeKg = report.recommendedTargetVolumeKg,
                 recommended1RmKg = report.recommendedTargetOneRepMaxKg,
-                accentColor = AppleOverloadOrange
+                accentColor = AppleStrengthProgression
             )
 
             StrengthStandardGaugeBar(
@@ -610,10 +853,12 @@ private fun ExerciseEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(AppleRadius.bottomSheet),
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text(
                 text = if (existing != null) "Edit Exercise" else "Add Custom Exercise",
-                style = MaterialTheme.typography.titleLarge,
+                style = AppleTypeScale.Title3,
                 fontWeight = FontWeight.Bold
             )
         },
@@ -629,7 +874,6 @@ private fun ExerciseEditorDialog(
                     fieldModifier = Modifier.testTag("custom_exercise_name_input")
                 )
 
-                // Fixes Image 3: Uses proper Dropdown Lists instead of clipped horizontal chip rows
                 AppleDropdownField(
                     label = "Primary Muscle Group",
                     selectedValue = muscleGroup,
@@ -664,13 +908,13 @@ private fun ExerciseEditorDialog(
                         onSave(name.trim(), muscleGroup, equipment, notes.trim())
                     }
                 },
-                accentColor = AppleStandBlue,
+                accentColor = AppleSystemBlue,
                 testTag = "save_custom_exercise_button"
             )
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = AppleSystemBlue)
             }
         }
     )
