@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -79,6 +80,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.local.FitnessDatabase
@@ -468,9 +470,7 @@ fun AppleActivityRingsCardContent(
                         text = "${intFormatter.format(animatedReps)} / ${intFormatter.format(metrics.repsTarget)} reps",
                         style = AppleTypeScale.Subheadline,
                         fontWeight = FontWeight.Bold,
-                        color = AppleMove,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = AppleMove
                     )
                 }
 
@@ -511,9 +511,7 @@ fun AppleActivityRingsCardContent(
                         text = "${intFormatter.format(animatedExercises)} / ${intFormatter.format(metrics.exercisesTarget)} exercises",
                         style = AppleTypeScale.Subheadline,
                         fontWeight = FontWeight.Bold,
-                        color = exerciseTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = exerciseTextColor
                     )
                 }
 
@@ -554,9 +552,7 @@ fun AppleActivityRingsCardContent(
                         text = "${intFormatter.format(animatedVolume)} / ${intFormatter.format(displayVolumeTarget)} $unitLabel",
                         style = AppleTypeScale.Subheadline,
                         fontWeight = FontWeight.Bold,
-                        color = standTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = standTextColor
                     )
                 }
             }
@@ -598,19 +594,13 @@ fun AppleActivityRingsCardContent(
                             },
                             style = AppleTypeScale.Subheadline,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "${metrics.completedRingsCount} of 3 Rings Closed • ${metrics.overallWeeklyCompletionPct}% Complete",
                             style = AppleTypeScale.Caption1,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (metrics.completedRingsCount == 3) AppleStateSuccess else AppleMoveRed,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (metrics.completedRingsCount == 3) AppleStateSuccess else AppleMoveRed
                         )
                     }
 
@@ -620,7 +610,7 @@ fun AppleActivityRingsCardContent(
                             color = AppleMoveRed.copy(alpha = 0.14f),
                             border = BorderStroke(1.dp, AppleMoveRed.copy(alpha = 0.28f)),
                             modifier = Modifier
-                                .height(34.dp)
+                                .heightIn(min = 34.dp)
                                 .clip(RoundedCornerShape(999.dp))
                                 .clickable {
                                     VivoHapticFeedback.performLight(context)
@@ -643,9 +633,7 @@ fun AppleActivityRingsCardContent(
                                     text = if (metrics.goalMode == ActivityGoalMode.CUSTOM) "Custom" else "Auto Goal",
                                     style = AppleTypeScale.Caption1,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleMoveRed,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = AppleMoveRed
                                 )
                             }
                         }
@@ -687,8 +675,6 @@ fun AppleActivityRingsCardContent(
                         text = metrics.adaptiveProgressionDetail,
                         style = AppleTypeScale.Caption2,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
@@ -696,8 +682,6 @@ fun AppleActivityRingsCardContent(
                         style = AppleTypeScale.Caption2,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        softWrap = false,
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -1064,25 +1048,19 @@ private fun RingMetricLegendRow(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = color,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = color
             )
         }
         Text(
             text = value,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = subLabel,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1369,9 +1347,7 @@ fun ExerciseProgressionChart(
                         },
                         style = AppleTypeScale.Footnote,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = if (isEmptyHistory) {
@@ -1380,9 +1356,7 @@ fun ExerciseProgressionChart(
                             "${selectedSession.completedSetCount} sets • ${selectedSession.totalReps} total reps"
                         },
                         style = AppleTypeScale.Caption1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
@@ -1606,30 +1580,43 @@ fun LiveWorkoutSetVolumeGraph(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Live Set-by-Set Volume Graph (${sets.size} sets)",
+                text = "Volume (${sets.size} sets)",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             )
-            Text(
-                text = "Peak Set: ${volumes.maxOrNull()?.roundToInt() ?: 0} $unitLabel",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = AppleExerciseGreen
-            )
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = AppleExerciseGreen.copy(alpha = 0.12f)
+            ) {
+                Text(
+                    text = "Peak: ${volumes.maxOrNull()?.roundToInt() ?: 0} $unitLabel",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = AppleExerciseGreen,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    softWrap = false
+                )
+            }
         }
 
+        val displayedSets = sets.take(14)
+        val barSpacing = if (displayedSets.size > 8) 4.dp else 6.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(barSpacing),
             verticalAlignment = Alignment.Bottom
         ) {
-            sets.take(14).forEachIndexed { idx, set ->
+            displayedSets.forEachIndexed { idx, set ->
                 val v = volumes[idx]
                 val frac by animateFloatAsState(
                     targetValue = (v / maxVol).coerceIn(0.15f, 1f),
@@ -1654,17 +1641,19 @@ fun LiveWorkoutSetVolumeGraph(
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.75f)
+                                .fillMaxWidth(0.80f)
                                 .fillMaxSize(frac)
-                                .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
                                 .background(barColor)
                         )
                     }
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "S${idx + 1}",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = if (displayedSets.size > 8) "${idx + 1}" else "S${idx + 1}",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
+                        textAlign = TextAlign.Center,
+                        softWrap = false
                     )
                 }
             }

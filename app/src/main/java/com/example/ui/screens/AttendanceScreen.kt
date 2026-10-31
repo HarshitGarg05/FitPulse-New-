@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -137,7 +138,7 @@ fun AttendanceScreen(
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = 12.dp,
+                top = 16.dp,
                 bottom = 140.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -176,9 +177,7 @@ fun AttendanceScreen(
                                     text = if (overview.currentStreakDays > 0) "${overview.currentStreakDays}d Streak" else "No Streak",
                                     style = AppleTypeScale.Caption1,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = AppleCalories,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = AppleCalories
                                 )
                             }
                         }
@@ -195,7 +194,10 @@ fun AttendanceScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Column(
+                                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "WEEKLY ATTENDANCE GOAL",
                                     style = MaterialTheme.typography.labelSmall,
@@ -287,9 +289,11 @@ fun AttendanceScreen(
                             }
                         }
 
-                        // Equal-Height 4-Metric Row (single-pass height for scroll smoothness)
+                        // Equal-Height 4-Metric Row
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             EqualHeightMetricMiniBox(
@@ -298,7 +302,7 @@ fun AttendanceScreen(
                                 accent = AppleOverloadOrange,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(68.dp)
+                                    .fillMaxHeight()
                             )
                             EqualHeightMetricMiniBox(
                                 label = "Best Streak",
@@ -306,7 +310,7 @@ fun AttendanceScreen(
                                 accent = AppleStandBlue,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(68.dp)
+                                    .fillMaxHeight()
                             )
                             EqualHeightMetricMiniBox(
                                 label = "This Month",
@@ -314,7 +318,7 @@ fun AttendanceScreen(
                                 accent = AppleExerciseGreen,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(68.dp)
+                                    .fillMaxHeight()
                             )
                             EqualHeightMetricMiniBox(
                                 label = "Total Visits",
@@ -322,7 +326,7 @@ fun AttendanceScreen(
                                 accent = AppleMoveRed,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(68.dp)
+                                    .fillMaxHeight()
                             )
                         }
                     }
@@ -332,18 +336,20 @@ fun AttendanceScreen(
             // 2. 7-Day Attendance Consistency Bar Graph
             item(key = "attendance_bar_chart", contentType = "bar_chart_card") {
                 LiquidGlassCard(accentTint = AppleExerciseGreen) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = "7-DAY CHECK-IN CONSISTENCY GRAPH",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = AppleExerciseGreen
-                        )
-                        Text(
-                            text = "Daily Gym Visits This Week",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "7-DAY CHECK-IN CONSISTENCY GRAPH",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleExerciseGreen
+                            )
+                            Text(
+                                text = "Daily Gym Visits This Week",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         AppleHealthBarChart(
                             points = overview.weeklyAttendanceSeries,
                             barColor = AppleMoveRed,
@@ -356,7 +362,7 @@ fun AttendanceScreen(
             // 3. Interactive Monthly Attendance Calendar
             item(key = "attendance_calendar", contentType = "calendar_card") {
                 LiquidGlassCard(accentTint = AppleStandBlue) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -400,7 +406,7 @@ fun AttendanceScreen(
 
             // 4. Filterable Chronological Attendance History
             item(key = "attendance_history_header", contentType = "section_header") {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     AppleSectionHeader(
                         title = "Attendance History",
                         subtitle = "${state.filteredAttendanceRecords.size} check-ins in selected period",
@@ -610,20 +616,19 @@ private fun AttendanceRecordRow(
                         tint = AppleStateSuccess
                     )
                 }
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = dateFormatted,
                         style = AppleTypeScale.Headline,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = "${record.note.ifBlank { "Gym attendance verified" }} • ${record.durationMinutes} min",
                         style = AppleTypeScale.Footnote,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

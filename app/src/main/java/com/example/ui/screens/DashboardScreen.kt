@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -169,7 +170,7 @@ fun DashboardScreen(
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = 12.dp,
+                top = 16.dp,
                 bottom = 140.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -206,9 +207,7 @@ fun DashboardScreen(
                                     text = if (attendance.attendedToday) "Checked In Today" else "Ready to Train",
                                     style = AppleTypeScale.Caption1,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (attendance.attendedToday) AppleStateSuccess else AppleSystemBlue,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = if (attendance.attendedToday) AppleStateSuccess else AppleSystemBlue
                                 )
                             }
                         }
@@ -228,7 +227,7 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = "WEEKLY ACTIVITY RINGS",
                                     style = AppleTypeScale.Caption1,
@@ -266,13 +265,13 @@ fun DashboardScreen(
                     color = if (isDark) AppleNestedCardBorderDark else AppleNestedCardBorderLight
                 )
                 LiquidGlassCard(accentTint = AppleStandBlue) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = "QUICK ACTIONS",
                                     style = AppleTypeScale.Caption1,
@@ -332,7 +331,10 @@ fun DashboardScreen(
                                             tint = AppleStandBlue,
                                             modifier = Modifier.size(18.dp)
                                         )
-                                        Column(modifier = Modifier.weight(1f)) {
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
                                             Text(
                                                 text = if (state.activeWorkout.isWorkoutActive) {
                                                     "Live Workout: ${state.activeWorkout.title.ifBlank { "Active Session" }}"
@@ -341,9 +343,7 @@ fun DashboardScreen(
                                                 },
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.Bold,
-                                                color = AppleStandBlue,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                color = AppleStandBlue
                                             )
                                             val activeEx = state.activeWorkout.activeExerciseName
                                             Text(
@@ -353,9 +353,7 @@ fun DashboardScreen(
                                                     "Tap Resume Workout to start exercise timer"
                                                 },
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                     }
@@ -363,7 +361,7 @@ fun DashboardScreen(
                             }
                         }
 
-                        // Equal-Height Single-Line Action Buttons
+                        // Equal-Height Action Buttons
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -377,7 +375,7 @@ fun DashboardScreen(
                                     accentColor = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(46.dp),
+                                        .heightIn(min = 46.dp),
                                     testTag = "check_in_today_button"
                                 )
                             } else {
@@ -388,7 +386,7 @@ fun DashboardScreen(
                                     accentColor = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(46.dp),
+                                        .heightIn(min = 46.dp),
                                     testTag = "open_attendance_button"
                                 )
                             }
@@ -400,7 +398,7 @@ fun DashboardScreen(
                                 accentColor = AppleStandBlue,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp),
+                                    .heightIn(min = 46.dp),
                                 testTag = "start_workout_dashboard_button"
                             )
                         }
@@ -422,12 +420,12 @@ fun DashboardScreen(
                     LiquidGlassCard(
                         modifier = Modifier
                             .weight(1f)
-                            .height(172.dp),
+                            .heightIn(min = 172.dp),
                         accentTint = AppleOverloadOrange,
                         onClick = { viewModel.selectTab(AppDestination.ATTENDANCE) }
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.SpaceBetween,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -519,18 +517,14 @@ fun DashboardScreen(
                                     text = if (attendance.currentStreakDays > 0) "${attendance.currentStreakDays} Day Streak" else "Start Streak",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
 
                                 Text(
                                     text = "${attendance.weeklyVisitDays}/${attendance.weeklyGoalDays} Days Wk",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleOverloadOrange,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = AppleOverloadOrange
                                 )
                             }
                         }
@@ -540,12 +534,12 @@ fun DashboardScreen(
                     LiquidGlassCard(
                         modifier = Modifier
                             .weight(1f)
-                            .height(172.dp),
+                            .heightIn(min = 172.dp),
                         accentTint = AppleStandCyan,
                         onClick = { viewModel.selectTab(AppDestination.WORKOUTS) }
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
@@ -592,9 +586,7 @@ fun DashboardScreen(
                                         text = viewModel.formatVolume(analytics.periodTotalVolumeKg),
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
-                                        color = cyanTextColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        color = cyanTextColor
                                     )
                                 }
 
@@ -655,8 +647,7 @@ fun DashboardScreen(
                                         text = viewModel.formatVolume(analytics.volumeTodayKg),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = cyanTextColor,
-                                        maxLines = 1
+                                        color = cyanTextColor
                                     )
                                 }
                             }
@@ -668,9 +659,7 @@ fun DashboardScreen(
             // 4. Activity & Strength Highlights (4 Clearly Separated Pure White Metric Cards on #F2F2F7 Canvas)
             item(key = "dashboard_highlights_grid", contentType = "highlights_grid") {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     AppleSectionHeader(
@@ -690,7 +679,7 @@ fun DashboardScreen(
                             accentColor = AppleMoveRed,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(118.dp)
+                                .heightIn(min = 118.dp)
                         )
                         AppleStatTile(
                             label = "ACTIVE STREAK",
@@ -700,7 +689,7 @@ fun DashboardScreen(
                             accentColor = AppleOverloadOrange,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(118.dp)
+                                .heightIn(min = 118.dp)
                         )
                     }
 
@@ -716,7 +705,7 @@ fun DashboardScreen(
                             accentColor = AppleStandBlue,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(118.dp)
+                                .heightIn(min = 118.dp)
                         )
                         AppleStatTile(
                             label = "TRAINING VOLUME",
@@ -726,7 +715,7 @@ fun DashboardScreen(
                             accentColor = AppleExerciseGreen,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(118.dp)
+                                .heightIn(min = 118.dp)
                         )
                     }
                 }
@@ -735,10 +724,8 @@ fun DashboardScreen(
             // 5A. Training Analytics & Daily Training Volume Card (Standalone Level-2 White Card with Clear Section Separation)
             item(key = "dashboard_volume_analytics", contentType = "bar_chart_card") {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     AppleSectionHeader(
                         title = "Training Analytics & Volume Graphs",
@@ -752,7 +739,7 @@ fun DashboardScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(
                                         text = "TRAINING VOLUME ANALYTICS",
                                         style = MaterialTheme.typography.labelSmall,
@@ -794,13 +781,13 @@ fun DashboardScreen(
             // 5B. Daily Completed Sets Card (Standalone Level-2 White Card)
             item(key = "dashboard_sets_analytics", contentType = "bar_chart_card") {
                 LiquidGlassCard(accentTint = AppleMoveRed) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = "SET FREQUENCY",
                                     style = MaterialTheme.typography.labelSmall,
@@ -833,8 +820,8 @@ fun DashboardScreen(
             // 5C. Muscle Group Volume & Set Breakdown Card (Standalone Level-2 White Card)
             item(key = "dashboard_muscle_distribution", contentType = "muscle_distribution_card") {
                 LiquidGlassCard(accentTint = AppleMuscleGroups) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = "MUSCLE DISTRIBUTION",
                                 style = MaterialTheme.typography.labelSmall,
@@ -869,7 +856,10 @@ fun DashboardScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Column(
+                                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(
                                         text = "STRENGTH PROGRESSION",
                                         style = AppleTypeScale.Caption1,
@@ -879,9 +869,7 @@ fun DashboardScreen(
                                     Text(
                                         text = activeReport.exerciseName,
                                         style = AppleTypeScale.Title3,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                                 OverloadBadge(
@@ -907,9 +895,11 @@ fun DashboardScreen(
                             val displayVolume = activeReport.personalRecordVolumeKg
                             val display1Rm = activeReport.personalRecordOneRepMaxKg
 
-                            // Equal-height 4-box Level-3 metric row (single-pass height for scroll smoothness)
+                            // Equal-height 4-box Level-3 metric row
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Max),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 EqualHeightMetricMiniBox(
@@ -918,7 +908,7 @@ fun DashboardScreen(
                                     accent = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(68.dp)
+                                        .fillMaxHeight()
                                 )
                                 EqualHeightMetricMiniBox(
                                     label = "Best Reps",
@@ -926,7 +916,7 @@ fun DashboardScreen(
                                     accent = AppleStandBlue,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(68.dp)
+                                        .fillMaxHeight()
                                 )
                                 EqualHeightMetricMiniBox(
                                     label = "Peak Vol",
@@ -934,7 +924,7 @@ fun DashboardScreen(
                                     accent = AppleExerciseGreen,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(68.dp)
+                                        .fillMaxHeight()
                                 )
                                 EqualHeightMetricMiniBox(
                                     label = "Est. 1RM",
@@ -942,7 +932,7 @@ fun DashboardScreen(
                                     accent = AppleMindPurple,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(68.dp)
+                                        .fillMaxHeight()
                                 )
                             }
 
@@ -1040,7 +1030,7 @@ fun EqualHeightMetricMiniBox(
     )
 
     Surface(
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 68.dp),
         shape = RoundedCornerShape(AppleRadius.nestedCard),
         color = containerBg,
         shadowElevation = 0.dp,
@@ -1048,8 +1038,9 @@ fun EqualHeightMetricMiniBox(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.Start
         ) {
@@ -1057,20 +1048,14 @@ fun EqualHeightMetricMiniBox(
                 text = label,
                 style = AppleTypeScale.Caption1,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
                 style = AppleTypeScale.SmallMetric,
                 fontWeight = FontWeight.Bold,
-                color = accent,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
+                color = accent
             )
         }
     }
@@ -1092,7 +1077,7 @@ private fun PersonalRecordsCard(
     val prTextColor = if (isDark) ApplePersonalRecords else AppleCalories
 
     LiquidGlassCard(accentTint = ApplePersonalRecords) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             AppleSectionHeader(
                 title = "Personal Records",
                 subtitle = if (records.isEmpty()) {
@@ -1122,20 +1107,19 @@ private fun PersonalRecordsCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = pr.exerciseName,
                                     style = AppleTypeScale.Headline,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "${pr.muscleGroup} • Achieved ${pr.achievedDateLabel}",
                                     style = AppleTypeScale.Footnote,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -1148,9 +1132,7 @@ private fun PersonalRecordsCard(
                                     style = AppleTypeScale.Footnote,
                                     fontWeight = FontWeight.Bold,
                                     color = prTextColor,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    maxLines = 1,
-                                    softWrap = false
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
                         }
@@ -1172,20 +1154,19 @@ private fun PersonalRecordsCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = report.exerciseName,
                                     style = AppleTypeScale.Headline,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "${report.muscleGroup} • 0 sessions logged",
                                     style = AppleTypeScale.Footnote,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -1198,9 +1179,7 @@ private fun PersonalRecordsCard(
                                     style = AppleTypeScale.Footnote,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    maxLines = 1,
-                                    softWrap = false
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
                         }
@@ -1226,7 +1205,7 @@ private fun RecentWorkoutHistorySection(
     )
 
     LiquidGlassCard(accentTint = AppleMuscleGroups) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             AppleSectionHeader(
                 title = "Recent Workouts",
                 subtitle = if (workouts.isEmpty()) "No sessions recorded yet" else "Tap Repeat to load a past plan",
@@ -1278,20 +1257,19 @@ private fun RecentWorkoutHistorySection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = workout.title,
                                     style = AppleTypeScale.Headline,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "$dateStr • ${workout.durationMinutes} min • ${workout.totalSets} sets • ${formatVolume(workout.totalVolumeKg)}",
                                     style = AppleTypeScale.Footnote,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -1333,10 +1311,7 @@ fun OverloadBadge(
             style = AppleTypeScale.Caption1,
             fontWeight = FontWeight.Bold,
             color = if (status == OverloadStatus.NEW_PR) AppleCalories else color,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
         )
     }
 }

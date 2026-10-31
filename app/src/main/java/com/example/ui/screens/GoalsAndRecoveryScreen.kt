@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -149,7 +150,7 @@ fun GoalsAndRecoveryScreen(
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = 12.dp,
+                top = 16.dp,
                 bottom = 140.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -186,9 +187,7 @@ fun GoalsAndRecoveryScreen(
                                     text = "${state.allExercises.size} Exercises",
                                     style = AppleTypeScale.Caption1,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = AppleStrengthProgression,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = AppleStrengthProgression
                                 )
                             }
                         }
@@ -223,7 +222,7 @@ fun GoalsAndRecoveryScreen(
             // 2. Search & Dropdown Filter Bar (Fixes Image 3: Uses Dropdowns instead of clipped chips)
             item(key = "exercise_filter_bar", contentType = "filter_card") {
                 LiquidGlassCard(accentTint = AppleStandBlue) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text(
                             text = "EXERCISE LIBRARY (${state.filteredExercises.size} EXERCISES)",
                             style = MaterialTheme.typography.labelSmall,
@@ -366,13 +365,13 @@ private fun RecoveryAndGoalsOverviewCard(
     }
 
     LiquidGlassCard(accentTint = AppleRecovery) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "RECOVERY & READINESS",
                         style = AppleTypeScale.Caption1,
@@ -577,7 +576,10 @@ private fun ProgressiveOverloadDetailCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -598,16 +600,12 @@ private fun ProgressiveOverloadDetailCard(
                     Text(
                         text = report.exerciseName,
                         style = AppleTypeScale.Title2,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "${report.muscleGroup} • ${report.equipment} • ${report.totalSessionsLogged} ${if (report.totalSessionsLogged == 1) "session" else "sessions"} logged",
                         style = AppleTypeScale.Footnote,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -658,9 +656,11 @@ private fun ProgressiveOverloadDetailCard(
                 }
             }
 
-            // Equal-Height 4-Metric Row (single-pass height measurement)
+            // Equal-Height 4-Metric Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 EqualHeightMetricMiniBox(
@@ -669,7 +669,7 @@ private fun ProgressiveOverloadDetailCard(
                     accent = AppleMove,
                     modifier = Modifier
                         .weight(1f)
-                        .height(68.dp)
+                        .fillMaxHeight()
                 )
                 EqualHeightMetricMiniBox(
                     label = "Best Reps",
@@ -677,7 +677,7 @@ private fun ProgressiveOverloadDetailCard(
                     accent = AppleStand,
                     modifier = Modifier
                         .weight(1f)
-                        .height(68.dp)
+                        .fillMaxHeight()
                 )
                 EqualHeightMetricMiniBox(
                     label = "Peak Vol",
@@ -685,7 +685,7 @@ private fun ProgressiveOverloadDetailCard(
                     accent = AppleExercise,
                     modifier = Modifier
                         .weight(1f)
-                        .height(68.dp)
+                        .fillMaxHeight()
                 )
                 EqualHeightMetricMiniBox(
                     label = "Est. 1RM",
@@ -693,7 +693,7 @@ private fun ProgressiveOverloadDetailCard(
                     accent = AppleStrengthProgression,
                     modifier = Modifier
                         .weight(1f)
-                        .height(68.dp)
+                        .fillMaxHeight()
                 )
             }
 
@@ -743,7 +743,7 @@ private fun ExerciseLibraryCard(
         accentTint = if (isSelectedForAnalytics) AppleStandBlue else AppleExerciseGreen,
         onClick = onSelectForAnalytics
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -770,20 +770,19 @@ private fun ExerciseLibraryCard(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
                             text = exercise.name,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "${exercise.muscleGroup} • ${exercise.equipment}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -850,9 +849,7 @@ private fun ExerciseLibraryCard(
                             },
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = if (hasHistory) AppleOverloadOrange else AppleStandBlue,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (hasHistory) AppleOverloadOrange else AppleStandBlue
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))

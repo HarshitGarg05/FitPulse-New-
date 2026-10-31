@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -235,7 +236,7 @@ fun ProfileAndPrivacyScreen(
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = 12.dp,
+                top = 16.dp,
                 bottom = 140.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -269,9 +270,7 @@ fun ProfileAndPrivacyScreen(
                                     text = "100% On-Device",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleStateSuccess,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = AppleStateSuccess
                                 )
                             }
                         }
@@ -287,13 +286,16 @@ fun ProfileAndPrivacyScreen(
                     v.roundToInt()
                 }
                 LiquidGlassCard(accentTint = AppleMoveRed) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "Weekly Activity Ring Goals",
                                     style = MaterialTheme.typography.titleMedium,
@@ -325,7 +327,7 @@ fun ProfileAndPrivacyScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text("Reps Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${intFormatter.format(weeklyRings.repsTarget)} reps",
@@ -334,7 +336,10 @@ fun ProfileAndPrivacyScreen(
                                     color = AppleMoveRed
                                 )
                             }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text("Exercises Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${intFormatter.format(weeklyRings.exercisesTarget)} exercises",
@@ -343,7 +348,10 @@ fun ProfileAndPrivacyScreen(
                                     color = AppleExerciseGreen
                                 )
                             }
-                            Column(horizontalAlignment = Alignment.End) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text("Volume Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${intFormatter.format(displayVolTarget)} ${state.unitLabel}",
@@ -385,7 +393,10 @@ fun ProfileAndPrivacyScreen(
                                     tint = AppleExerciseGreen
                                 )
                             }
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "Workout & Overload Automation",
                                     style = MaterialTheme.typography.titleMedium,
@@ -506,7 +517,10 @@ fun ProfileAndPrivacyScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Column(
+                                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "Auto-Start Rest Timer on Set Register",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -547,7 +561,10 @@ fun ProfileAndPrivacyScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Column(
+                                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "Auto-Log Gym Attendance on Workout Save",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -594,18 +611,20 @@ fun ProfileAndPrivacyScreen(
             // 3. Appearance & Apple Liquid Glass Theme Mode
             item(key = "settings_theme_card", contentType = "theme_card") {
                 LiquidGlassCard(accentTint = AppleStandBlue) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = "APPEARANCE & LIQUID GLASS THEME",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = AppleStandBlue
-                        )
-                        Text(
-                            text = "Display Mode",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "APPEARANCE & LIQUID GLASS THEME",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AppleStandBlue
+                            )
+                            Text(
+                                text = "Display Mode",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         AppleSegmentedControl(
                             items = ThemeMode.entries,
                             selectedItem = state.themeMode,
@@ -647,7 +666,10 @@ fun ProfileAndPrivacyScreen(
                                     tint = AppleMoveRed
                                 )
                             }
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "Formatted PDF Fitness Report",
                                     style = MaterialTheme.typography.titleMedium,
@@ -674,7 +696,7 @@ fun ProfileAndPrivacyScreen(
                                 enabled = !state.isGeneratingPdf,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp),
+                                    .heightIn(min = 46.dp),
                                 testTag = "generate_pdf_report_button"
                             )
 
@@ -687,7 +709,7 @@ fun ProfileAndPrivacyScreen(
                                     accentColor = AppleMoveRed,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(46.dp),
+                                        .heightIn(min = 46.dp),
                                     testTag = "save_pdf_to_device_button"
                                 )
                             }
@@ -739,17 +761,12 @@ fun ProfileAndPrivacyScreen(
                                         Text(
                                             text = report.fileName,
                                             style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis
+                                            fontWeight = FontWeight.Bold
                                         )
                                         Text(
                                             text = "Generated ${report.generatedAtLabel} • ${report.pageCount} ${if (report.pageCount == 1) "page" else "pages"} • ${(report.file.length() / 1024L).coerceAtLeast(1L)} KB",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
 
@@ -772,9 +789,7 @@ fun ProfileAndPrivacyScreen(
                                                 text = "Ready",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
-                                                color = AppleStateSuccess,
-                                                maxLines = 1,
-                                                softWrap = false
+                                                color = AppleStateSuccess
                                             )
                                         }
                                     }
@@ -824,7 +839,7 @@ fun ProfileAndPrivacyScreen(
             // 5. Athlete Profile, Body Composition & Weekly Targets Card
             item(key = "settings_athlete_profile_card", contentType = "profile_card") {
                 LiquidGlassCard(accentTint = AppleMindPurple) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -970,7 +985,10 @@ fun ProfileAndPrivacyScreen(
                                     tint = AppleStandBlue
                                 )
                             }
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
                                     text = "Full Data Backup & Restore",
                                     style = MaterialTheme.typography.titleMedium,
@@ -1016,7 +1034,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleStandBlue,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp),
+                                    .heightIn(min = 46.dp),
                                 testTag = "export_backup_json_button"
                             )
 
@@ -1029,7 +1047,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleMoveRed,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp),
+                                    .heightIn(min = 46.dp),
                                 testTag = "export_backup_pdf_button"
                             )
                         }
@@ -1050,7 +1068,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleExerciseGreen,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp),
+                                    .heightIn(min = 46.dp),
                                 testTag = "import_backup_json_button"
                             )
 
@@ -1061,7 +1079,7 @@ fun ProfileAndPrivacyScreen(
                                 accentColor = AppleMindPurple,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(46.dp),
+                                    .heightIn(min = 46.dp),
                                 testTag = "create_manual_snapshot_button"
                             )
                         }
@@ -1118,16 +1136,12 @@ fun ProfileAndPrivacyScreen(
                                             Text(
                                                 text = if (snap.isAutoBackup) "Auto-Backup Snapshot (Latest)" else snap.fileName,
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                fontWeight = FontWeight.Bold
                                             )
                                             Text(
                                                 text = "${snap.createdAtLabel} • ${snap.attendanceCount} visits • ${snap.sessionsCount} workouts • ${snap.setsCount} sets",
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                         LiquidGlassSecondaryButton(
@@ -1152,7 +1166,7 @@ fun ProfileAndPrivacyScreen(
             // 7. Local Storage Status & Reset Management
             item(key = "settings_storage_reset_card", contentType = "storage_card") {
                 LiquidGlassCard(accentTint = AppleOverloadOrange) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1162,7 +1176,7 @@ fun ProfileAndPrivacyScreen(
                                 contentDescription = null,
                                 tint = AppleExerciseGreen
                             )
-                            Column {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = "Room SQLite v${FitnessDatabase.CURRENT_SCHEMA_VERSION} • Write-Ahead Logging (WAL)",
                                     style = MaterialTheme.typography.titleMedium,
@@ -1309,7 +1323,7 @@ private fun BarbellPlateCalculatorCard(
     }
 
     LiquidGlassCard(accentTint = AppleOverloadOrange) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1327,7 +1341,10 @@ private fun BarbellPlateCalculatorCard(
                         tint = AppleOverloadOrange
                     )
                 }
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = "Barbell Plate Loader Calculator",
                         style = MaterialTheme.typography.titleMedium,

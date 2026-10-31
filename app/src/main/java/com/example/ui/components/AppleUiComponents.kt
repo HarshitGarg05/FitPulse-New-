@@ -84,14 +84,22 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -378,30 +386,21 @@ fun AppleStyleMetricCard(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = accentColor,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
+                    color = accentColor
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = primaryValue,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = secondaryValue,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -424,7 +423,7 @@ fun AppleStyleSection(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         AppleSectionHeader(
             title = title,
@@ -460,7 +459,7 @@ fun AppleStyleGroupedCard(
         modifier = modifier,
         accentTint = accentTint
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             if (!title.isNullOrBlank()) {
                 AppleSectionHeader(
                     title = title,
@@ -535,23 +534,19 @@ fun AppleLargePageHeader(
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = overlineText.uppercase(Locale.US),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = accentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = accentColor
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -864,12 +859,9 @@ fun LiquidGlassPrimaryButton(
             Text(
                 text = text,
                 fontSize = 13.sp,
-                lineHeight = 15.sp,
+                lineHeight = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
         }
@@ -938,12 +930,9 @@ fun LiquidGlassSecondaryButton(
             Text(
                 text = text,
                 fontSize = 13.sp,
-                lineHeight = 15.sp,
+                lineHeight = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = labelAndIconColor,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
         }
@@ -1045,9 +1034,6 @@ fun <T> AppleSegmentedControl(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = textColor,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -1073,9 +1059,18 @@ fun AppleDropdownField(
     testTag: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var searchQuery by remember(expanded) { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val showSearchInsideMenu = options.size > 8
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val textFieldInteractionSource = remember { MutableInteractionSource() }
+    val isTextFieldPressed by textFieldInteractionSource.collectIsPressedAsState()
+
+    LaunchedEffect(isTextFieldPressed) {
+        if (isTextFieldPressed && !expanded) {
+            expanded = true
+        }
+    }
 
     val filteredOptions = remember(searchQuery, options) {
         val q = searchQuery.trim()
@@ -1108,19 +1103,26 @@ fun AppleDropdownField(
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 2.dp)
             )
         }
 
-        // Uniform 56.dp height closed trigger box so every column in a 2-column row has the exact same size
+        // Typable selection bar: tapping or typing directly inside the selection option opens & filters the menu
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .heightIn(min = 56.dp)
                 .clip(fieldShape)
-                .clickable { expanded = !expanded }
+                .clickable {
+                    if (!expanded) {
+                        expanded = true
+                        runCatching { focusRequester.requestFocus() }
+                    } else {
+                        expanded = false
+                        searchQuery = ""
+                        focusManager.clearFocus()
+                    }
+                }
                 .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
             shape = fieldShape,
             color = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
@@ -1131,33 +1133,121 @@ fun AppleDropdownField(
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 14.dp),
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = selectedValue,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { newText ->
+                        searchQuery = newText
+                        if (!expanded) {
+                            expanded = true
+                        }
+                    },
+                    interactionSource = textFieldInteractionSource,
+                    singleLine = false,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    cursorBrush = SolidColor(AppleMoveRed),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (searchQuery.isNotBlank() && filteredOptions.isNotEmpty()) {
+                                onOptionSelected(filteredOptions.first())
+                            }
+                            searchQuery = ""
+                            expanded = false
+                            focusManager.clearFocus()
+                        }
+                    ),
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 8.dp)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused) {
+                                expanded = true
+                            }
+                        },
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = selectedValue,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (expanded) {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 )
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = label.ifBlank { "Dropdown" },
-                    tint = if (expanded) AppleMoveRed else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (searchQuery.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    searchQuery = ""
+                                    runCatching { focusRequester.requestFocus() }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear filter",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .clickable {
+                                if (expanded) {
+                                    expanded = false
+                                    searchQuery = ""
+                                    focusManager.clearFocus()
+                                } else {
+                                    expanded = true
+                                    runCatching { focusRequester.requestFocus() }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = label.ifBlank { "Dropdown" },
+                            tint = if (expanded) AppleMoveRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
-        // Always opens DOWNWARDS directly below the trigger box
+        // Always opens DOWNWARDS directly below the trigger box without any extra search bar
         AnimatedVisibility(
             visible = expanded,
             enter = fadeIn(tween(180)) + expandVertically(
@@ -1184,101 +1274,73 @@ fun AppleDropdownField(
                         .fillMaxWidth()
                         .padding(vertical = 6.dp)
                 ) {
-                    if (showSearchInsideMenu) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = {
-                                Text(
-                                    text = "Search...",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
-                                unfocusedContainerColor = if (isDark) AppleSurfaceSecondaryDark else AppleBgLight,
-                                focusedBorderColor = AppleMoveRed,
-                                unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    val displayedOptions = if (showSearchInsideMenu && searchQuery.isBlank()) {
+                    val displayedOptions = if (options.size > 12 && searchQuery.isBlank()) {
                         filteredOptions.take(12)
                     } else {
                         filteredOptions
                     }
 
-                    displayedOptions.forEachIndexed { index, option ->
-                        val isSelected = option.equals(selectedValue, ignoreCase = true)
-                        val sub = subtitleProvider?.invoke(option)
+                    if (displayedOptions.isEmpty()) {
+                        Text(
+                            text = "No matching options",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        )
+                    } else {
+                        displayedOptions.forEachIndexed { index, option ->
+                            val isSelected = option.equals(selectedValue, ignoreCase = true)
+                            val sub = subtitleProvider?.invoke(option)
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onOptionSelected(option)
-                                    expanded = false
-                                    searchQuery = ""
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
+                            Row(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 8.dp)
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onOptionSelected(option)
+                                        expanded = false
+                                        searchQuery = ""
+                                        focusManager.clearFocus()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = option,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) AppleMoveRed else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (!sub.isNullOrBlank()) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
                                     Text(
-                                        text = sub,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        text = option,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) AppleMoveRed else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (!sub.isNullOrBlank()) {
+                                        Text(
+                                            text = sub,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = AppleMoveRed,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = AppleMoveRed,
-                                    modifier = Modifier.size(18.dp)
+
+                            if (index < displayedOptions.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 14.dp),
+                                    thickness = 0.5.dp,
+                                    color = if (isDark) AppleSeparatorDark else AppleSeparatorLight
                                 )
                             }
-                        }
-
-                        if (index < displayedOptions.lastIndex) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 14.dp),
-                                thickness = 0.5.dp,
-                                color = if (isDark) AppleSeparatorDark else AppleSeparatorLight
-                            )
                         }
                     }
                 }
@@ -1342,8 +1404,6 @@ fun AppleLiquidGlassTextField(
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 2.dp)
             )
         }
@@ -1361,9 +1421,7 @@ fun AppleLiquidGlassTextField(
                     Text(
                         text = placeholder,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                     )
                 }
             } else null,
@@ -1440,8 +1498,6 @@ fun AppleDatePickerField(
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(start = 2.dp)
             )
         }
@@ -1449,7 +1505,7 @@ fun AppleDatePickerField(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .heightIn(min = 56.dp)
                 .clip(fieldShape)
                 .clickable {
                     VivoHapticFeedback.performLight(context)
@@ -1465,8 +1521,9 @@ fun AppleDatePickerField(
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 14.dp),
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1487,10 +1544,7 @@ fun AppleDatePickerField(
                         text = formattedDisplayDate,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 Icon(
@@ -1761,8 +1815,18 @@ fun AppleMultiSelectExerciseDropdown(
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var searchQuery by remember(expanded) { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val textFieldInteractionSource = remember { MutableInteractionSource() }
+    val isTextFieldPressed by textFieldInteractionSource.collectIsPressedAsState()
+
+    LaunchedEffect(isTextFieldPressed) {
+        if (isTextFieldPressed && !expanded) {
+            expanded = true
+        }
+    }
 
     val filteredExercises = remember(searchQuery, availableExercises) {
         if (searchQuery.isBlank()) {
@@ -1777,52 +1841,163 @@ fun AppleMultiSelectExerciseDropdown(
         }
     }
 
+    val summaryLabel = if (selectedExerciseNames.isEmpty()) {
+        "Choose exercises (0 selected)"
+    } else {
+        "${selectedExerciseNames.size} exercises selected"
+    }
+
+    val triggerBorderColor = if (expanded) {
+        AppleMoveRed
+    } else if (isDark) {
+        AppleNestedCardBorderDark
+    } else {
+        AppleSeparatorLight
+    }
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        Text(
+            text = "Select Exercises",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 2.dp)
+        )
+
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(AppleRadius.nestedCard))
-                .clickable { expanded = !expanded }
+                .heightIn(min = 56.dp)
+                .clip(RoundedCornerShape(AppleRadius.inputField))
+                .clickable {
+                    if (!expanded) {
+                        expanded = true
+                        runCatching { focusRequester.requestFocus() }
+                    } else {
+                        expanded = false
+                        searchQuery = ""
+                        focusManager.clearFocus()
+                    }
+                }
                 .testTag("routine_exercises_dropdown_trigger"),
-            shape = RoundedCornerShape(AppleRadius.nestedCard),
+            shape = RoundedCornerShape(AppleRadius.inputField),
             color = if (isDark) AppleHealthDarkContainer else AppleBgLight,
             shadowElevation = 0.dp,
             tonalElevation = 0.dp,
-            border = BorderStroke(1.dp, if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight),
+            border = BorderStroke(if (expanded) 1.5.dp else 1.dp, triggerBorderColor),
             contentColor = MaterialTheme.colorScheme.onSurface
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Select Exercises",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = if (selectedExerciseNames.isEmpty()) {
-                            "Choose exercises (0 selected)"
-                        } else {
-                            "${selectedExerciseNames.size} exercises selected"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { newText ->
+                        searchQuery = newText
+                        if (!expanded) {
+                            expanded = true
+                        }
+                    },
+                    interactionSource = textFieldInteractionSource,
+                    singleLine = false,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Toggle Exercise Dropdown",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    cursorBrush = SolidColor(AppleMoveRed),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                        }
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused) {
+                                expanded = true
+                            }
+                        },
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = summaryLabel,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (expanded) {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (searchQuery.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    searchQuery = ""
+                                    runCatching { focusRequester.requestFocus() }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear filter",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .clickable {
+                                if (expanded) {
+                                    expanded = false
+                                    searchQuery = ""
+                                    focusManager.clearFocus()
+                                } else {
+                                    expanded = true
+                                    runCatching { focusRequester.requestFocus() }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Toggle Exercise Dropdown",
+                            tint = if (expanded) AppleMoveRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -1845,80 +2020,63 @@ fun AppleMultiSelectExerciseDropdown(
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search exercise...", style = MaterialTheme.typography.bodySmall) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = if (isDark) AppleSurfaceDark else AppleBgLight,
-                            unfocusedContainerColor = if (isDark) AppleSurfaceDark else AppleBgLight,
-                            focusedBorderColor = AppleMoveRed,
-                            unfocusedBorderColor = if (isDark) AppleNestedCardBorderDark else AppleSeparatorLight
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
                     val itemDividerColor = if (isDark) AppleHealthDarkOutline else AppleHealthLightOutline
-                    HorizontalDivider(color = itemDividerColor)
-
                     val displayExercises = if (searchQuery.isBlank()) filteredExercises.take(15) else filteredExercises
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        displayExercises.forEachIndexed { index, exercise ->
-                            val isSelected = selectedExerciseNames.any { it.equals(exercise.name, ignoreCase = true) }
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onToggleExercise(exercise.name) },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) AppleMoveRed.copy(alpha = 0.15f) else Color.Transparent
-                            ) {
-                                Row(
+                        if (displayExercises.isEmpty()) {
+                            Text(
+                                text = "No matching exercises",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                            )
+                        } else {
+                            displayExercises.forEachIndexed { index, exercise ->
+                                val isSelected = selectedExerciseNames.any { it.equals(exercise.name, ignoreCase = true) }
+                                Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onToggleExercise(exercise.name) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSelected) AppleMoveRed.copy(alpha = 0.15f) else Color.Transparent
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = exercise.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) AppleMoveRed else MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "${exercise.muscleGroup} • ${exercise.equipment}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    if (isSelected) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = AppleMoveRed,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = exercise.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) AppleMoveRed else MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = "${exercise.muscleGroup} • ${exercise.equipment}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = AppleMoveRed,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                            if (index < displayExercises.lastIndex) {
-                                HorizontalDivider(color = itemDividerColor.copy(alpha = 0.5f))
+                                if (index < displayExercises.lastIndex) {
+                                    HorizontalDivider(color = itemDividerColor.copy(alpha = 0.5f))
+                                }
                             }
                         }
                     }
@@ -1927,7 +2085,13 @@ fun AppleMultiSelectExerciseDropdown(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(onClick = { expanded = false }) {
+                        TextButton(
+                            onClick = {
+                                expanded = false
+                                searchQuery = ""
+                                focusManager.clearFocus()
+                            }
+                        ) {
                             Text("Done", style = MaterialTheme.typography.labelMedium, color = AppleMoveRed)
                         }
                     }
@@ -2015,23 +2179,19 @@ fun AppleSectionHeader(
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = title,
                 style = AppleTypeScale.Title2,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                color = MaterialTheme.colorScheme.onSurface
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     style = AppleTypeScale.Subheadline,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -2070,9 +2230,6 @@ fun AnimatedMetricValueText(
         text = if (suffix.isBlank()) formatted else "$formatted $suffix",
         style = style,
         fontWeight = FontWeight.Bold,
-        color = color,
-        maxLines = 1,
-        softWrap = false,
-        overflow = TextOverflow.Ellipsis
+        color = color
     )
 }

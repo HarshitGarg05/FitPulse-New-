@@ -125,6 +125,7 @@ import com.example.ui.theme.AppleSurfaceSecondaryLight
 import com.example.ui.theme.AppleSurfaceTertiaryDark
 import com.example.ui.theme.AppleSurfaceTertiaryLight
 import com.example.ui.theme.AppleSystemBlue
+import com.example.ui.theme.AppleTypeScale
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.scale
@@ -192,13 +193,13 @@ fun WorkoutLoggerScreen(
             contentPadding = PaddingValues(
                 start = 20.dp,
                 end = 20.dp,
-                top = 12.dp,
+                top = 16.dp,
                 bottom = 140.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item(key = "workout_logger_header", contentType = "header") {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     AppleLargePageHeader(
                         overlineText = "WORKOUT PLANNER & LIVE TRACKER",
                         title = "Workouts",
@@ -229,9 +230,7 @@ fun WorkoutLoggerScreen(
                                         text = if (activeWorkout.isWorkoutActive) "Live Session" else "${state.completedSessions.size} Logged",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (activeWorkout.isWorkoutActive) AppleExerciseGreen else AppleStandBlue,
-                                        maxLines = 1,
-                                        softWrap = false
+                                        color = if (activeWorkout.isWorkoutActive) AppleExerciseGreen else AppleStandBlue
                                     )
                                 }
                             }
@@ -276,6 +275,21 @@ fun WorkoutLoggerScreen(
 
             when (selectedSubTab) {
                 WorkoutTabSection.ACTIVE_LOGGER -> {
+                    item(key = "active_logger_section_header", contentType = "section_header") {
+                        AppleSectionHeader(
+                            title = if (activeWorkout.isWorkoutActive) "Live Workout Logger" else "Workout Plan & Logger",
+                            subtitle = if (activeWorkout.isWorkoutActive) {
+                                "Tap any exercise below to run its timer and register sets"
+                            } else {
+                                "Build a custom plan, load a saved routine, or start logging live"
+                            },
+                            actionLabel = "Add Exercise",
+                            actionIcon = Icons.Default.Add,
+                            actionColor = AppleStandBlue,
+                            onActionClick = { showAddExerciseModal = true }
+                        )
+                    }
+
                     if (!activeWorkout.isWorkoutActive) {
                         // STAGE 1: BLANK WORKOUT PLAN BUILDER
                         // User starts with a blank canvas to build their workout plan, save it for next time, or start the live workout!
@@ -356,7 +370,7 @@ fun WorkoutLoggerScreen(
                                         accentColor = AppleMindPurple,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(46.dp),
+                                            .heightIn(min = 46.dp),
                                         testTag = "save_plan_for_next_time_button"
                                     )
                                     LiquidGlassPrimaryButton(
@@ -366,7 +380,7 @@ fun WorkoutLoggerScreen(
                                         accentColor = AppleExerciseGreen,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(46.dp),
+                                            .heightIn(min = 46.dp),
                                         testTag = "start_planned_workout_button"
                                     )
                                 }
@@ -503,7 +517,7 @@ fun WorkoutLoggerScreen(
                                     accentColor = AppleMindPurple,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(46.dp)
+                                        .heightIn(min = 46.dp)
                                 )
                                 LiquidGlassPrimaryButton(
                                     text = "Finish & Save Workout",
@@ -512,7 +526,7 @@ fun WorkoutLoggerScreen(
                                     accentColor = AppleExerciseGreen,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(46.dp),
+                                        .heightIn(min = 46.dp),
                                     testTag = "finish_and_save_workout_button"
                                 )
                             }
@@ -543,7 +557,7 @@ fun WorkoutLoggerScreen(
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
                                         text = "No saved workout plans yet",
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
@@ -591,10 +605,10 @@ fun WorkoutLoggerScreen(
                     if (state.completedSessions.isEmpty()) {
                         item(key = "history_empty", contentType = "empty_card") {
                             LiquidGlassCard(accentTint = AppleMindPurple) {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text(
                                         text = "No completed workouts yet",
-                                        style = MaterialTheme.typography.titleSmall,
+                                        style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
@@ -725,7 +739,10 @@ private fun BlankWorkoutPlanBuilderCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = "STEP 1 • CREATE OR LOAD WORKOUT PLAN",
                         style = MaterialTheme.typography.labelSmall,
@@ -738,7 +755,7 @@ private fun BlankWorkoutPlanBuilderCard(
                         } else {
                             "Plan Ready ($plannedExerciseCount Exercises • $totalPlannedSets Sets)"
                         },
-                        style = MaterialTheme.typography.titleLarge,
+                        style = AppleTypeScale.Title2,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -850,20 +867,21 @@ private fun PlannedExerciseBuilderCard(
         accentTint = AppleStandCyan,
         onClick = onToggleExpand
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f).padding(end = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = exerciseName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = AppleStandBlue,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = AppleStandBlue
                     )
                     Text(
                         text = "$muscleGroup • ${sets.size} planned sets",
@@ -1043,7 +1061,10 @@ private fun LiveWorkoutTelemetryHeaderCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -1062,17 +1083,13 @@ private fun LiveWorkoutTelemetryHeaderCard(
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (editor.isTimerRunning) AppleExerciseGreen else AppleOverloadOrange,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (editor.isTimerRunning) AppleExerciseGreen else AppleOverloadOrange
                         )
                     }
                     Text(
                         text = editor.title.ifBlank { "Live Strength Session" },
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        style = AppleTypeScale.Title2,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
@@ -1132,7 +1149,10 @@ private fun LiveWorkoutTelemetryHeaderCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Column(
+                        modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
                             text = if (editor.activeExerciseName != null) {
                                 "Active Exercise: ${editor.activeExerciseName}"
@@ -1141,9 +1161,7 @@ private fun LiveWorkoutTelemetryHeaderCard(
                             },
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = if (editor.activeExerciseName != null) AppleExerciseGreen else MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (editor.activeExerciseName != null) AppleExerciseGreen else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Total Session Time: $sessionTimerFormatted",
@@ -1192,9 +1210,7 @@ private fun LiveWorkoutTelemetryHeaderCard(
                                     text = "Rest ${secs}s",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleSystemBlue,
-                                    maxLines = 1,
-                                    softWrap = false
+                                    color = AppleSystemBlue
                                 )
                             }
                         }
@@ -1254,10 +1270,7 @@ private fun LiveInteractiveExerciseCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                    if (isExerciseActive || (completedCount == sets.size && sets.isNotEmpty())) {
                         Surface(
                             shape = RoundedCornerShape(999.dp),
                             color = if (isExerciseActive) {
@@ -1269,28 +1282,22 @@ private fun LiveInteractiveExerciseCard(
                             Text(
                                 text = if (isExerciseActive) {
                                     "ACTIVE • $timerText"
-                                } else if (completedCount == sets.size && sets.isNotEmpty()) {
-                                    "COMPLETED ✓"
                                 } else {
-                                    "TAP TO START EXERCISE"
+                                    "COMPLETED ✓"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isExerciseActive) AppleExerciseGreen else AppleStandBlue,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                maxLines = 1,
-                                softWrap = false
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = exerciseName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = if (isExerciseActive) AppleExerciseGreen else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = if (isExerciseActive) AppleExerciseGreen else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "$muscleGroup • $completedCount of ${sets.size} sets registered",
@@ -1488,9 +1495,7 @@ private fun LiveInteractiveExerciseCard(
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isCompleted) AppleExerciseGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                modifier = Modifier.weight(1f)
                             )
 
                             Row(
@@ -1595,7 +1600,7 @@ private fun RestTimerBanner(
                             modifier = Modifier.size(20.dp)
                         )
                     }
-                    Column {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             text = "REST TIMER",
                             style = MaterialTheme.typography.labelSmall,
@@ -1705,13 +1710,16 @@ private fun RoutineItemCard(
     }
 
     LiquidGlassCard(accentTint = AppleStandBlue) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = "${routine.category.uppercase(Locale.US)} • ~${routine.targetDurationMin} MIN",
                         style = MaterialTheme.typography.labelSmall,
@@ -1793,6 +1801,7 @@ private fun HistoricalWorkoutCard(
     onDuplicateSession: () -> Unit,
     onDeleteSession: () -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
     val dateFormatted = remember(workout.dateKey) {
         AnalyticsAndInsightsEngine.formatDateKeyReadable(workout.dateKey)
     }
@@ -1802,15 +1811,24 @@ private fun HistoricalWorkoutCard(
 
     LiquidGlassCard(
         accentTint = AppleMindPurple,
-        onClick = onSelectSession
+        onClick = {
+            if (!isExpanded) {
+                isExpanded = true
+            } else {
+                onSelectSession()
+            }
+        }
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = dateFormatted.uppercase(Locale.US),
                         style = MaterialTheme.typography.labelSmall,
@@ -1829,7 +1847,10 @@ private fun HistoricalWorkoutCard(
                     )
                 }
 
-                Row {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     IconButton(onClick = onDuplicateSession) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
@@ -1844,50 +1865,94 @@ private fun HistoricalWorkoutCard(
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
+                    Surface(
+                        onClick = { isExpanded = !isExpanded },
+                        shape = CircleShape,
+                        color = if (isExpanded) {
+                            AppleMindPurple.copy(alpha = 0.14f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("history_expand_toggle_${workout.id}")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isExpanded) "Shrink Workout History Card" else "Expand Workout History Card",
+                                tint = AppleMindPurple,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
             }
 
-            if (groupedByExercise.isNotEmpty()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
-                groupedByExercise.entries.forEach { (exerciseName, exSets) ->
-                    val bestSet = exSets.maxByOrNull { it.weightKg }
-                    val setsDescription = exSets.joinToString(", ") {
-                        "${formatWeight(it.weightKg)} × ${it.reps}"
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = exerciseName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (bestSet != null) {
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) + fadeIn(),
+                exit = shrinkVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ) + fadeOut()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (groupedByExercise.isNotEmpty()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                        groupedByExercise.entries.forEach { (exerciseName, exSets) ->
+                            val bestSet = exSets.maxByOrNull { it.weightKg }
+                            val setsDescription = exSets.joinToString(", ") {
+                                "${formatWeight(it.weightKg)} × ${it.reps}"
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = exerciseName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 12.dp)
+                                    )
+                                    if (bestSet != null) {
+                                        Text(
+                                            text = "Top: ${formatWeight(bestSet.weightKg)} × ${bestSet.reps}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppleExerciseGreen,
+                                            fontWeight = FontWeight.Bold,
+                                            softWrap = false
+                                        )
+                                    }
+                                }
                                 Text(
-                                    text = "Top: ${formatWeight(bestSet.weightKg)} × ${bestSet.reps}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = AppleExerciseGreen,
-                                    fontWeight = FontWeight.Bold
+                                    text = setsDescription,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        Text(
-                            text = setsDescription,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
+
+                    Text(
+                        text = "Tap to view workout stats, graphs & full set log",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppleMindPurple.copy(alpha = 0.85f),
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
-
-            Text(
-                text = "Tap to view workout stats, graphs & full set log",
-                style = MaterialTheme.typography.labelSmall,
-                color = AppleMindPurple.copy(alpha = 0.85f),
-                fontWeight = FontWeight.Medium
-            )
         }
     }
 }
@@ -1965,26 +2030,34 @@ private fun HistoricalWorkoutDetailDialog(
                 // Key Metrics
                 item {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         EqualHeightMetricMiniBox(
                             label = "Duration",
                             value = "${session.durationMinutes} min",
                             accent = AppleStandBlue,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
                         )
                         EqualHeightMetricMiniBox(
                             label = "Total Volume",
                             value = formatVolume(session.totalVolumeKg),
                             accent = AppleExerciseGreen,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
                         )
                         EqualHeightMetricMiniBox(
                             label = "Sets / Reps",
                             value = "${session.totalSets} / $totalReps",
                             accent = AppleOverloadOrange,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
                         )
                     }
                 }
@@ -2050,13 +2123,17 @@ private fun HistoricalWorkoutDetailDialog(
                                 Text(
                                     text = exerciseName,
                                     style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 12.dp)
                                 )
                                 Text(
                                     text = formatVolume(exerciseVolume),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = AppleExerciseGreen,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    softWrap = false
                                 )
                             }
 
@@ -2095,7 +2172,8 @@ private fun HistoricalWorkoutDetailDialog(
                                     Text(
                                         text = "${formatWeight(s.weightKg)} × ${s.reps} reps",
                                         style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -2495,7 +2573,10 @@ private fun WorkoutCompletionSummaryModal(
                             Text(
                                 text = "Total Reps (Outer Ring)",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 12.dp)
                             )
                             Text(
                                 text = "${intFormatter.format(animatedReps)} reps",
@@ -2511,9 +2592,12 @@ private fun WorkoutCompletionSummaryModal(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Exercises Completed (Middle Ring)",
+                                text = "Exercises (Middle Ring)",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 12.dp)
                             )
                             Text(
                                 text = "$animatedExercises exercises",
@@ -2531,7 +2615,10 @@ private fun WorkoutCompletionSummaryModal(
                             Text(
                                 text = "Total Volume (Inner Ring)",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 12.dp)
                             )
                             Text(
                                 text = "${intFormatter.format(animatedVolume)} $unitLabel",
